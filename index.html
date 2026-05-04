@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>세피리아 빌드 시뮬레이터</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@noonnu/galmuri9@0.1.19/index.min.css">
+  <style>
+    :root {
+      --bg:#17120f; --panel:#241c17; --panel2:#30261f; --slot:#1c1612;
+      --text:#f7ead8; --muted:#bcae9c; --line:#49382d; --accent:#d69b55;
+      --accent2:#f1cc83; --slate:#5fa5d9; --artifact:#b477ea; --shadow:0 18px 48px rgba(0,0,0,.33);
+    }
+    body.light {
+      --bg:#f5efe5; --panel:#fff8ee; --panel2:#eadbc8; --slot:#fff3df;
+      --text:#2d241e; --muted:#75675a; --line:#d5bea0; --accent:#b87b38;
+      --accent2:#e6b96c; --shadow:0 14px 34px rgba(91,62,28,.15);
+    }
+    * { box-sizing:border-box; }
+    html, body, button, input, select, textarea { font-family:"Galmuri9", system-ui, sans-serif; }
+    body { margin:0; min-height:100vh; font-family:"Galmuri9", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:radial-gradient(circle at top left, rgba(214,155,85,.25), transparent 32%), linear-gradient(180deg,var(--bg),#0f0c0a); color:var(--text); }
+    body.light { background:radial-gradient(circle at top left, rgba(230,185,108,.3), transparent 34%), linear-gradient(180deg,var(--bg),#e8dccd); }
+    button,input,select,textarea { font:inherit; font-family:"Galmuri9", system-ui, sans-serif; }
+    .app { width:min(1280px, calc(100% - 24px)); margin:0 auto; padding:14px 0 32px; }
+    header { display:grid; grid-template-columns:1fr auto; gap:14px; align-items:center; margin-bottom:12px; }
+    .brand { display:flex; gap:11px; align-items:center; min-width:220px; }
+    .logo { width:54px; height:54px; border-radius:15px; background:var(--panel2); border:1px solid var(--line); box-shadow:var(--shadow); padding:5px; object-fit:contain; }
+    h1 { margin:0; font-size:20px; line-height:1; font-weight:400; }
+    .version { margin-top:5px; font-size:12px; color:var(--muted); }
+    .tabs { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+    .tab,.btn { border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 12px; cursor:pointer; }
+    #helpBtn { width:30px; height:30px; padding:0; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:13px; line-height:1; }
+    .tab.active,.btn.primary { background:var(--accent); color:#fff8eb; border-color:transparent; font-weight:400; }
+    .actions { display:flex; gap:8px; justify-content:flex-end; }
+    .notice { display:flex; justify-content:flex-end; align-items:center; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--muted); margin-bottom:14px; font-size:14px; }
+    .layout { display:grid; grid-template-columns:max-content 730px; gap:14px; align-items:start; justify-content:center; }
+    .panel { border:1px solid var(--line); background:color-mix(in srgb,var(--panel) 96%, transparent); border-radius:22px; box-shadow:var(--shadow); overflow:hidden; }
+    .panel-head { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--panel2) 78%, transparent); }
+    .panel-title { margin:0; font-size:17px; font-weight:950; }
+    .panel-sub { margin:4px 0 0; color:var(--muted); font-size:12px; }
+    .tag { display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:4px 8px; font-size:12px; white-space:nowrap; }
+    .controls { display:grid; grid-template-columns:auto minmax(120px,1fr) auto; gap:8px; padding:14px; align-items:center; border-bottom:1px solid var(--line); background:color-mix(in srgb,var(--panel2) 78%, transparent); }
+    .type-buttons { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--line); background:var(--slot); border-radius:14px; padding:3px; overflow:hidden; min-width:170px; }
+    .type-buttons::before { content:""; position:absolute; top:3px; left:3px; width:calc((100% - 6px) / 2); height:calc(100% - 6px); border-radius:10px; background:var(--accent); transition:transform .18s ease; }
+    .type-buttons[data-active="slate"]::before { transform:translateX(100%); }
+    .type-btn { position:relative; z-index:1; border:0; background:transparent; color:var(--text); border-radius:10px; padding:10px 13px; cursor:pointer; white-space:nowrap; font-weight:400; }
+    .type-btn.active { background:transparent; color:#fff8eb; border-color:transparent; font-weight:400; }
+    .controls input, .controls select { width:100%; min-width:120px; border:1px solid var(--line); background:var(--slot); color:var(--text); border-radius:12px; padding:10px; outline:none; }
+    .controls select { min-width:108px; cursor:pointer; }
+    .priority-hint { grid-column:1 / -1; margin:0; color:var(--muted); font-size:12px; line-height:1.35; }
+    .inventory { padding:14px; display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); gap:10px; max-height:690px; overflow:auto; scrollbar-width:none; -ms-overflow-style:none; }
+    .inventory::-webkit-scrollbar { display:none; width:0; height:0; }
+    .item-card { aspect-ratio:1; display:grid; place-items:center; border:1px solid var(--line); background:var(--slot); border-radius:16px; padding:6px; cursor:grab; user-select:none; transition:.12s; overflow:hidden; position:relative; }
+    .item-card:hover { transform:translateY(-1px); border-color:var(--accent); }
+    .item-card[data-rarity="common"], .slot[data-rarity="common"] { --rarity-color:#ffffff; }
+    .item-card[data-rarity="competitive"], .slot[data-rarity="competitive"] { --rarity-color:#49A3F2; }
+    .item-card[data-rarity="rare"], .slot[data-rarity="rare"] { --rarity-color:#F2B705; }
+    .item-card[data-rarity="legendary"], .slot[data-rarity="legendary"] { --rarity-color:#F2059F; }
+    .item-card[data-rarity] { border-color:color-mix(in srgb, var(--rarity-color) 72%, var(--line)); box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--rarity-color) 28%, transparent); }
+    .slot[data-rarity] { border-color:color-mix(in srgb, var(--rarity-color) 68%, var(--line)); }
+    .item-card.priority, .slot.priority { outline:2px solid #ffef88; outline-offset:2px; }
+    .item-card.priority::after, .slot.priority::before {
+      content:"★"; position:absolute; left:4px; top:4px; min-width:17px; height:17px;
+      display:inline-flex; align-items:center; justify-content:center; border-radius:6px;
+      background:#ffef88; color:#24170b; font-size:11px; line-height:1; z-index:2;
+      border:1px solid rgba(255,255,255,.38);
+    }
+
+    .slot.merge-source { outline:2px solid #7ee8ff; outline-offset:3px; }
+    .merge-badge, .rotate-badge {
+      position:absolute; z-index:4; height:18px; min-width:22px; padding:0 5px;
+      display:inline-flex; align-items:center; justify-content:center; border-radius:6px;
+      border:1px solid rgba(255,255,255,.35); font-size:10px; line-height:1; color:#24170b;
+      pointer-events:none;
+    }
+    .merge-badge { left:4px; bottom:4px; background:#7ee8ff; }
+    .rotate-badge { right:4px; top:4px; background:#d7b3ff; }
+    .thumb { width:100%; height:100%; object-fit:contain; border-radius:12px; background:rgba(255,255,255,.05); border:0; padding:3px; display:block; }
+
+    .item-card {
+      aspect-ratio:auto;
+      min-height:92px;
+      grid-template-rows:1fr auto;
+      gap:4px;
+      padding:6px;
+    }
+    .item-card[data-id^="slate_"] { min-height:108px; }
+    .item-card .thumb {
+      width:100%;
+      height:56px;
+      max-height:64px;
+      object-fit:contain;
+    }
+    .item-card > div, .item-card .tag { display:none; }
+
+    .item-label {
+      width:100%;
+      min-height:24px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:color-mix(in srgb,var(--panel) 80%, transparent);
+      color:var(--text);
+      font-size:11px;
+      line-height:1.15;
+      padding:3px 4px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      word-break:keep-all;
+    }
+    .rotate-lock {
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border:1px solid color-mix(in srgb,#ffb56b 65%,var(--line));
+      border-radius:7px;
+      background:rgba(255,181,107,.12);
+      color:#ffce9a;
+      font-size:10px;
+      line-height:1;
+      padding:3px 4px;
+    }
+    .item-card.no-rotate { box-shadow:inset 0 0 0 2px rgba(255,181,107,.25); }
+    .item-name { font-weight:850; font-size:14px; margin-bottom:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .item-desc { display:none; }
+    .board-wrap { padding:16px; }
+    .board-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+    .board-title { margin:0; font-size:22px; font-weight:400; }
+    .board-guide { margin:4px 0 0; color:var(--muted); font-size:13px; }
+    .grid { --board-cell:72px; display:grid; grid-template-columns:repeat(6,var(--board-cell)); gap:9px; width:max-content; margin:0 auto; background-image:var(--board-shot, none); background-size:contain; background-position:center; background-repeat:no-repeat; }
+    .grid.has-shot { border:1px solid var(--line); border-radius:24px; padding:10px; background-color:color-mix(in srgb,var(--panel2) 50%, transparent); }
+    .slot { width:var(--board-cell); height:var(--board-cell); border:1px dashed color-mix(in srgb,var(--line) 70%, var(--accent)); background:color-mix(in srgb,var(--slot) 88%, transparent); border-radius:18px; display:grid; place-items:center; position:relative; padding:5px; overflow:hidden; }
+    .slot:nth-child(6n+2),.slot:nth-child(6n+4) { transform:none; }
+    .slot.empty::before { content:""; }
+    .slot.over { border-color:var(--accent2); background:color-mix(in srgb,var(--accent) 16%, var(--slot)); }
+    .placed { width:100%; height:100%; display:grid; place-items:center; border-radius:14px; background:linear-gradient(180deg,color-mix(in srgb,var(--panel) 88%, transparent),color-mix(in srgb,var(--panel2) 90%, transparent)); cursor:pointer; padding:0; position:relative; }
+    .level-badge { position:absolute; right:4px; top:4px; min-width:22px; height:18px; border-radius:6px; background:#ffef88; color:#25180a; border:1px solid rgba(255,255,255,.35); font-size:10px; display:inline-flex; align-items:center; justify-content:center; z-index:3; }
+    .placed img { width:100%; height:100%; object-fit:contain; display:block; transition:transform .18s ease; transform-origin:center center; }
+    .placed span { display:none; }
+    .stats { padding:14px; display:grid; gap:10px; }
+    .stat-line { display:grid; grid-template-columns:80px 1fr auto; align-items:center; gap:8px; font-size:13px; }
+    .bar { height:9px; background:color-mix(in srgb,var(--line) 60%, transparent); border-radius:999px; overflow:hidden; }
+    .bar i { display:block; height:100%; width:0; border-radius:inherit; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s; }
+    .summary { padding:0 14px 14px; display:grid; gap:8px; }
+    .summary-box,.code-box { border:1px solid var(--line); border-radius:14px; background:var(--slot); padding:10px; color:var(--muted); font-size:13px; line-height:1.45; word-break:break-all; }
+    .library { padding:16px; display:none; }
+    .library.active { display:block; }
+    .library-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(135px,1fr)); gap:10px; padding:14px; }
+    .library-card { border:1px solid var(--line); border-radius:16px; background:var(--slot); padding:12px; display:grid; justify-items:center; gap:8px; text-align:center; min-height:142px; }
+    .library-card img { width:58px; height:58px; object-fit:contain; }
+    .library-card strong { font-size:13px; line-height:1.2; }
+    .board-actions { display:flex; align-items:flex-start; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+    .slot-control-wrap { display:grid; gap:4px; justify-items:center; width:158px; }
+    .slot-controls { width:100%; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:6px; }
+    .slot-btn { width:100%; height:34px; padding:0 16px; border-radius:10px; font-weight:1000; display:inline-flex; align-items:center; justify-content:center; }
+    .slot-count { min-width:42px; height:34px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); background:var(--slot); color:var(--text); border-radius:12px; font-weight:900; }
+    .slot-caption { margin:0; color:var(--muted); font-size:13px; line-height:1.3; white-space:nowrap; }
+    html, body { scrollbar-width:none; -ms-overflow-style:none; }
+    html::-webkit-scrollbar, body::-webkit-scrollbar { display:none; width:0; height:0; }
+
+    .operate-wrap { margin-top:14px; display:grid; justify-items:center; }
+    .operate-btn { width:min(260px, 100%); height:42px; border-radius:14px; border:1px solid var(--line); background:var(--accent); color:#fff8eb; cursor:pointer; }
+    .slot.enhance-plus { border-style:solid; border-color:#6fe28f; box-shadow:0 0 0 2px rgba(111,226,143,.3), inset 0 0 18px rgba(111,226,143,.18); }
+    .slot.enhance-minus { border-style:solid; border-color:#ff7777; box-shadow:0 0 0 2px rgba(255,119,119,.28), inset 0 0 18px rgba(255,119,119,.16); }
+    .slot.enhance-core { border-style:solid; border-color:var(--accent2); box-shadow:0 0 0 2px rgba(241,204,131,.32), inset 0 0 18px rgba(241,204,131,.18); }
+    .slot.enhance-plus::after,
+    .slot.enhance-minus::after,
+    .slot.enhance-core::after,
+    .slot.enhance-ignore::after {
+      position:absolute; right:5px; bottom:4px; min-width:18px; height:18px;
+      display:inline-flex; align-items:center; justify-content:center;
+      border-radius:6px; font-size:12px; line-height:1; color:#130f0c;
+      background:#6fe28f; border:1px solid rgba(255,255,255,.28);
+    }
+    .slot.enhance-plus::after { content:"+"; }
+    .slot.enhance-minus::after { content:"-"; background:#ff7777; color:#fff8eb; }
+    .slot.enhance-core::after { content:"◆"; background:var(--accent2); }
+    .slot.enhance-ignore::after { content:"무시"; background:#55cfd6; color:#06181a; }
+    .slot.enhance-invalid::after { content:"!"; background:#ffb347; color:#24140a; }
+    .slot.enhance-blocked::after { content:"×"; background:#9b7cff; color:#fff8eb; }
+    .slot.enhance-plus { border-style:solid; border-color:#6fe28f; }
+    .slot.enhance-minus { border-style:solid; border-color:#ff7777; }
+    .slot.enhance-invalid { border-style:solid; border-color:#ffb347; }
+    .slot.enhance-blocked { border-style:solid; border-color:#9b7cff; }
+    .slot.enhance-ignore { border-style:solid; border-color:#55cfd6; box-shadow:0 0 0 2px rgba(85,207,214,.26), inset 0 0 18px rgba(85,207,214,.14); }
+    .slot.enhance-max { border-style:solid; border-color:#ffef88; box-shadow:0 0 0 2px rgba(255,239,136,.38), inset 0 0 22px rgba(255,239,136,.22); }
+    .slot.enhance-max::after { content:"MAX"; position:absolute; right:5px; bottom:4px; min-width:28px; height:18px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; font-size:10px; line-height:1; color:#24170b; background:#ffef88; border:1px solid rgba(255,255,255,.28); }
+    .slot.enhance-suggest { border-style:dashed; border-color:var(--line); box-shadow:none; }
+    .slot.enhance-suggest::after { content:none; display:none; }
+
+    .item-card.priority::after, .slot.priority::before { display:none !important; content:none !important; }
+    .priority-number-badge {
+      position:absolute; right:4px; top:4px; width:22px; height:22px; padding:0;
+      display:grid; place-items:center; text-align:center;
+      border-radius:999px; background:#ffef88; color:#24170b;
+      border:1px solid rgba(255,255,255,.45); font-size:11px; line-height:1; z-index:5;
+      pointer-events:none; font-variant-numeric:tabular-nums;
+    }
+    .no-enhance-dot {
+      position:absolute; left:5px; top:5px; width:16px; height:16px;
+      display:inline-block; border-radius:999px; background:#ff3b3b;
+      border:2px solid rgba(255,255,255,.78); box-shadow:0 0 0 1px rgba(0,0,0,.35);
+      z-index:6; pointer-events:none;
+    }
+    .mode-buttons {
+      grid-column:1 / -1; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr));
+      gap:8px; align-items:center;
+    }
+    .mode-btn {
+      border:1px solid var(--line); background:var(--slot); color:var(--text);
+      border-radius:12px; padding:9px 10px; cursor:pointer; font-size:12px;
+    }
+    .mode-btn.active {
+      background:var(--accent); color:#fff8eb; border-color:transparent;
+      box-shadow:0 0 0 2px color-mix(in srgb,var(--accent2) 25%, transparent);
+    }
+    #banModeBtn.active { background:#b93333; color:#fff8eb; }
+    #autoApplyBtn { background:color-mix(in srgb,var(--accent) 88%, #fff 0%); color:#fff8eb; }
+    .level-badge {
+      right:4px !important; top:auto !important; bottom:4px !important; min-width:30px; height:18px; padding:0 5px;
+      display:inline-flex; align-items:center; justify-content:center; text-align:center;
+      font-variant-numeric:tabular-nums; z-index:4;
+    }
+
+    .toast { position:fixed; right:18px; bottom:18px; max-width:360px; background:#16100c; color:#fff6e9; border:1px solid #3a2d23; border-radius:14px; padding:12px 14px; box-shadow:0 16px 36px rgba(0,0,0,.35); opacity:0; pointer-events:none; transform:translateY(10px); transition:.2s; z-index:20; }
+    .toast.show { opacity:1; transform:translateY(0); }
+    @media(max-width:1040px) { header { grid-template-columns:1fr; } .actions { justify-content:flex-start; } .layout { grid-template-columns:1fr; justify-content:stretch; } .inventory { max-height:360px; } .slot:nth-child(n) { transform:none; } }
+    @media(max-width:1040px) { .controls { grid-template-columns:auto 1fr auto; } .inventory { grid-template-columns:repeat(8, minmax(0, 1fr)); } }
+    @media(max-width:700px) { .inventory { grid-template-columns:repeat(6, minmax(0, 1fr)); } }
+    @media(max-width:560px) { .app { width:calc(100% - 16px); } .notice,.board-toolbar { flex-direction:column; align-items:stretch; } .controls { grid-template-columns:1fr; } .controls input, .controls select { grid-column:1 / -1; } .type-buttons { display:grid; } .grid { --board-cell:64px; grid-template-columns:repeat(4,var(--board-cell)); gap:7px; } .tab,.btn { padding:7px 9px; font-size:13px; } #helpBtn { width:27px; height:27px; padding:0; } }
+
+    /* v24 fix: 우측 목록은 상태 배지를 숨기고, 좌측 인벤토리 슬롯에만 상태를 표시합니다. */
+    #inventory .priority-number-badge,
+    #inventory .no-enhance-dot,
+    #inventory .level-badge { display:none !important; }
+    .placed .priority-number-badge {
+      position:absolute; right:4px; top:4px; width:19px; height:19px;
+      display:grid; place-items:center; border-radius:50%; background:#ffef88; color:#24170b;
+      font-size:11px; line-height:1; border:1px solid rgba(255,255,255,.42); z-index:8;
+    }
+    .placed .no-enhance-dot {
+      position:absolute; left:4px; top:4px; width:17px; height:17px;
+      display:block; border-radius:50%; background:#ff4343; border:2px solid rgba(255,255,255,.65); z-index:8;
+    }
+    .placed .level-badge {
+      position:absolute; right:4px; bottom:4px; top:auto; min-width:30px; height:18px;
+      padding:0 5px; display:grid; place-items:center; border-radius:6px;
+      background:#1a120d; color:#fff1dc; border:1px solid rgba(255,255,255,.35);
+      font-size:10px; line-height:1; z-index:7;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <img class="logo" src="assets/logo/sephiria.webp" alt="Sephiria logo" />
+        <div><h1>세피리아 빌드 시뮬레이터</h1><div class="version">버전: 0.11.9</div></div>
+      </div>
+      <div class="actions"><button class="btn" id="themeBtn">Toggle theme</button><button class="btn" id="helpBtn">?</button></div>
+    </header>
+    <section class="notice"><button class="btn" id="clearBtn">전체 초기화</button></section>
+
+    <main id="simulator" class="layout">
+      <section class="panel board-panel">
+        <div class="board-wrap">
+          <div class="board-toolbar">
+            <div>
+              <h2 class="board-title">인벤토리</h2>
+              <p class="board-guide">클릭 제거 / 석판 Shift+클릭 회전 / Ctrl+클릭 합성 원본 선택</p>
+            </div>
+            <div class="board-actions">
+              <button class="btn" id="shotBtn">스크린샷 업로드</button>
+              <input id="shotInput" type="file" accept="image/*" hidden />
+              <div class="slot-control-wrap">
+                <div class="slot-controls">
+                  <button class="btn slot-btn" id="slotMinus" type="button">-</button>
+                  <span id="slotCount" class="slot-count">34</span>
+                  <button class="btn slot-btn" id="slotPlus" type="button">+</button>
+                </div>
+                <p class="slot-caption">최대 인벤토리 슬롯 설정</p>
+              </div>
+            </div>
+          </div>
+          <div id="board" class="grid"></div>
+          <div class="operate-wrap"><button class="operate-btn" id="operateBtn" type="button">작동</button></div>
+        </div>
+      </section>
+      <aside class="panel inventory-panel">
+        <div class="controls" aria-label="인벤토리 분류와 검색">
+          <div class="type-buttons" data-active="artifact">
+            <button class="type-btn active" data-type="artifact">아티팩트</button>
+            <button class="type-btn" data-type="slate">석판</button>
+          </div>
+          <input id="searchInput" type="search" placeholder="검색" />
+          <select id="rarityFilter" aria-label="석판 등급 필터">
+            <option value="all">등급 전체</option>
+            <option value="common">일반</option>
+            <option value="competitive">경쟁</option>
+            <option value="rare">희귀</option>
+            <option value="legendary">전설</option>
+          </select>
+          <p class="priority-hint">우선 순위/강화 X 버튼을 누른 뒤 아티팩트를 선택하세요.</p>
+          <div class="mode-buttons" aria-label="자동 배치 설정">
+            <button class="mode-btn" id="priorityModeBtn" type="button">우선 순위</button>
+            <button class="mode-btn" id="banModeBtn" type="button">강화 X</button>
+            <button class="mode-btn" id="autoApplyBtn" type="button">적용</button>
+          </div>
+        </div>
+        <div id="inventory" class="inventory"></div>
+      </aside>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script>
+    const initialBoardSize = 34;
+    const ITEMS = [
+      {"id": "slate_dry", "type": "slate", "name": "건조", "image": "assets/slates/dry.png", "rarity": "common", "canRotate": false},
+      {"id": "slate_approximation", "type": "slate", "name": "근사", "image": "assets/slates/approximation.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_chivalry", "type": "slate", "name": "기사도", "image": "assets/slates/chivalry.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_advent", "type": "slate", "name": "도래", "image": "assets/slates/advent.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_compete", "type": "slate", "name": "선의", "image": "assets/slates/compete.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_sight", "type": "slate", "name": "시선", "image": "assets/slates/sight.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_handshake", "type": "slate", "name": "악수", "image": "assets/slates/handshake.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_fate", "type": "slate", "name": "운명", "image": "assets/slates/fate.webp", "rarity": "common", "canRotate": false},
+      {"id": "slate_wit", "type": "slate", "name": "재치", "image": "assets/slates/wit.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_exploitation", "type": "slate", "name": "착취", "image": "assets/slates/exploitation.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_unity", "type": "slate", "name": "화합", "image": "assets/slates/unity.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_cheer", "type": "slate", "name": "환호", "image": "assets/slates/cheer.webp", "rarity": "common", "canRotate": false},
+      {"id": "slate_hope", "type": "slate", "name": "희망", "image": "assets/slates/hope.png", "rarity": "common", "canRotate": true},
+      {"id": "slate_beating", "type": "slate", "name": "고동", "image": "assets/slates/beating.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_past", "type": "slate", "name": "과거", "image": "assets/slates/past.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_honor", "type": "slate", "name": "명예", "image": "assets/slates/honor.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_future", "type": "slate", "name": "미래", "image": "assets/slates/future.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_distribution", "type": "slate", "name": "분배", "image": "assets/slates/distribution.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_triceps", "type": "slate", "name": "삼두", "image": "assets/slates/triceps.png", "rarity": "competitive", "canRotate": false},
+      {"id": "slate_harvesting", "type": "slate", "name": "수확", "image": "assets/slates/harvesting.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_binary_star", "type": "slate", "name": "쌍성", "image": "assets/slates/binary_star.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_compression", "type": "slate", "name": "압축", "image": "assets/slates/compression.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_nurture", "type": "slate", "name": "양육", "image": "assets/slates/nurture.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_yearning", "type": "slate", "name": "열망", "image": "assets/slates/yearning.png", "rarity": "competitive", "canRotate": false},
+      {"id": "slate_courage", "type": "slate", "name": "용기", "image": "assets/slates/courage.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_agglutination", "type": "slate", "name": "응집", "image": "assets/slates/agglutination.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_entrance", "type": "slate", "name": "입구", "image": "assets/slates/entrance.png", "rarity": "competitive", "canRotate": false},
+      {"id": "slate_joke", "type": "slate", "name": "장난", "image": "assets/slates/joke.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_load", "type": "slate", "name": "적재", "image": "assets/slates/load.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_transition", "type": "slate", "name": "전이", "image": "assets/slates/transition.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_advance", "type": "slate", "name": "전진", "image": "assets/slates/advance.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_preparation", "type": "slate", "name": "준비", "image": "assets/slates/preparation.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_exit", "type": "slate", "name": "출구", "image": "assets/slates/exit.png", "rarity": "competitive", "canRotate": false},
+      {"id": "slate_tide", "type": "slate", "name": "파도", "image": "assets/slates/tide.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_dedication", "type": "slate", "name": "헌정", "image": "assets/slates/dedication.png", "rarity": "competitive", "canRotate": true},
+      {"id": "slate_hospitality", "type": "slate", "name": "환대", "image": "assets/slates/hospitality.png", "rarity": "competitive", "canRotate": false},
+      {"id": "slate_warrant", "type": "slate", "name": "권능", "image": "assets/slates/warrant.png", "rarity": "rare", "canRotate": true},
+      {"id": "slate_base", "type": "slate", "name": "기반", "image": "assets/slates/base.png", "rarity": "rare", "canRotate": false},
+      {"id": "slate_disconnection", "type": "slate", "name": "단절", "image": "assets/slates/disconnection.png", "rarity": "rare", "canRotate": false},
+      {"id": "slate_concurrency", "type": "slate", "name": "동시성", "image": "assets/slates/concurrency.png", "rarity": "rare", "canRotate": false},
+      {"id": "slate_vow", "type": "slate", "name": "맹세", "image": "assets/slates/vow.png", "rarity": "rare", "canRotate": true},
+      {"id": "slate_rebellion", "type": "slate", "name": "반항", "image": "assets/slates/rebellion.png", "rarity": "rare", "canRotate": true},
+      {"id": "slate_connection", "type": "slate", "name": "이음", "image": "assets/slates/connection.png", "rarity": "rare", "canRotate": true},
+      {"id": "slate_shade", "type": "slate", "name": "차양", "image": "assets/slates/shade.png", "rarity": "rare", "canRotate": false},
+      {"id": "slate_home-town", "type": "slate", "name": "고양", "image": "assets/slates/home-town.png", "rarity": "legendary", "canRotate": true},
+      {"id": "slate_thorn", "type": "slate", "name": "가시", "image": "assets/slates/thorn.png", "rarity": "legendary", "canRotate": false},
+      {"id": "slate_boundary", "type": "slate", "name": "경계", "image": "assets/slates/boundary.png", "rarity": "legendary", "canRotate": false},
+      {"id": "slate_sheen", "type": "slate", "name": "광휘", "image": "assets/slates/sheen.png", "rarity": "legendary", "canRotate": true},
+      {"id": "slate_miracle", "type": "slate", "name": "기적", "image": "assets/slates/miracle.png", "rarity": "legendary", "canRotate": true},
+      {"id": "slate_daydream", "type": "slate", "name": "백일몽", "image": "assets/slates/daydream.png", "rarity": "legendary", "canRotate": true},
+      {"id": "slate_linear", "type": "slate", "name": "선형", "image": "assets/slates/linear.png", "rarity": "legendary", "canRotate": false},
+      {"id": "slate_justice", "type": "slate", "name": "정의", "image": "assets/slates/justice.png", "rarity": "legendary", "canRotate": false},
+      {"id": "slate_peace", "type": "slate", "name": "평화", "image": "assets/slates/peace.png", "rarity": "legendary", "canRotate": true},
+      {"id": "slate_certitude", "type": "slate", "name": "확실", "image": "assets/slates/certitude.png", "rarity": "legendary", "canRotate": true},
+      {"id": "artifact_absolute_ring", "type": "artifact", "name": "Absolute Ring", "image": "assets/artifacts_1/absolute_ring.png", "maxLevel": 2},
+      {"id": "artifact_academy_brigendine", "type": "artifact", "name": "Academy Brigendine", "image": "assets/artifacts_1/academy_brigendine.png", "maxLevel": 5},
+      {"id": "artifact_crabapple_fruit", "type": "artifact", "name": "Crabapple Fruit", "image": "assets/artifacts_1/crabapple_fruit.png", "maxLevel": 2},
+      {"id": "artifact_agma_projection_sword_no._190,_191", "type": "artifact", "name": "Agma Projection Sword No. 190, 191", "image": "assets/artifacts_1/agma_projection_sword_no._190,_191.png", "maxLevel": 7},
+      {"id": "artifact_ahmad's_spirit_powder", "type": "artifact", "name": "Ahmad's Spirit Powder", "image": "assets/artifacts_1/ahmad's_spirit_powder.png", "maxLevel": 4},
+      {"id": "artifact_alfonso's_horn", "type": "artifact", "name": "Alfonso's Horn", "image": "assets/artifacts_1/alfonso's_horn.webp", "maxLevel": 7},
+      {"id": "artifact_amber", "type": "artifact", "name": "Amber", "image": "assets/artifacts_1/amber.png", "maxLevel": 3},
+      {"id": "artifact_dragoncense", "type": "artifact", "name": "Dragoncense", "image": "assets/artifacts_1/dragoncense.webp", "maxLevel": 4},
+      {"id": "charm_of_intelligence", "type": "artifact", "name": "Charm Of Intelligence", "image": "assets/artifacts_1/charm_of_intelligence.webp", "maxLevel": 3},
+      {"id": "artifact_charm_of_aspiration", "type": "artifact", "name": "Charm Of Aspiration", "image": "assets/artifacts_1/charm_of_aspiration.png", "maxLevel": 3},
+      {"id": "artifact_charm_of_strength", "type": "artifact", "name": "Charm Of Strength", "image": "assets/artifacts_1/charm_of_strength.webp", "maxLevel": 3},
+      {"id": "artifact_ancient_anvil", "type": "artifact", "name": "Ancient Anvil", "image": "assets/artifacts_1/ancient_anvil.png", "maxLevel": 3},
+      {"id": "artifact_rain_of_arrows", "type": "artifact", "name": "Rain Of Arrows", "image": "assets/artifacts_1/rain_of_arrows.png", "maxLevel": 3},
+      {"id": "artifact_artificial_fairy,_iphiel", "type": "artifact", "name": "Artificial Fairy, Iphiel", "image": "assets/artifacts_1/artificial_fairy,_iphiel.png", "maxLevel": 5},
+      {"id": "artifact_ashen_planet", "type": "artifact", "name": "Ashen Planet", "image": "assets/artifacts_1/ashen_planet.png", "maxLevel": 5},
+      {"id": "artifact_devotion_insignia", "type": "artifact", "name": "Devotion Insignia", "image": "assets/artifacts_1/devotion_insignia.png", "maxLevel": 3},
+      {"id": "artifact_balisong", "type": "artifact", "name": "Balisong", "image": "assets/artifacts_1/balisong.png", "maxLevel": 3},
+      {"id": "artifact_begonia_sachet", "type": "artifact", "name": "Begonia Sachet", "image": "assets/artifacts_1/begonia_sachet.png", "maxLevel": 1},
+      {"id": "artifact_scythe_of_berut", "type": "artifact", "name": "Scythe Of Berut", "image": "assets/artifacts_1/scythe_of_berut.png", "maxLevel": 3},
+      {"id": "artifact_bicorn_pipe", "type": "artifact", "name": "Bicorn Pipe", "image": "assets/artifacts_1/bicorn_pipe.png", "maxLevel": 5},
+      {"id": "artifact_dark_planet", "type": "artifact", "name": "Dark Planet", "image": "assets/artifacts_1/dark_planet.png", "maxLevel": 4},
+      {"id": "artifact_ebony_scale", "type": "artifact", "name": "Ebony Scale", "image": "assets/artifacts_1/ebony_scale.png", "maxLevel": 3},
+      {"id": "artifact_pouch_of_black_tea", "type": "artifact", "name": "Pouch Of Black Tea", "image": "assets/artifacts_1/pouch_of_black_tea.png", "maxLevel": 2},
+      {"id": "artifact_blessing", "type": "artifact", "name": "Blessing", "image": "assets/artifacts_1/blessing.png", "maxLevel": 2},
+      {"id": "artifact_bloodstone_earrings", "type": "artifact", "name": "Bloodstone Earrings", "image": "assets/artifacts_1/bloodstone_earrings.png", "maxLevel": 3},
+      {"id": "artifact_blood_stone_ring", "type": "artifact", "name": "Blood Stone Ring", "image": "assets/artifacts_1/blood_stone_ring.png", "maxLevel": 2},
+      {"id": "artifact_blue_claw", "type": "artifact", "name": "Blue Claw", "image": "assets/artifacts_1/blue_claw.png", "maxLevel": 3},
+      {"id": "artifact_blue_planet", "type": "artifact", "name": "Blue Planet", "image": "assets/artifacts_1/blue_planet.png", "maxLevel": 5},
+      {"id": "artifact_blue_hook", "type": "artifact", "name": "Blue Hook", "image": "assets/artifacts_1/blue_hook.png", "maxLevel": 3},
+      {"id": "artifact_blue_wrist_guard", "type": "artifact", "name": "Blue Wrist Guard", "image": "assets/artifacts_1/blue_wrist_guard.png", "maxLevel": 5},
+      {"id": "artifact_thunderstorm_tracking_compass", "type": "artifact", "name": "Thunderstorm Tracking Compass", "image": "assets/artifacts_1/thunderstorm_tracking_compass.png", "maxLevel": 3},
+      {"id": "artifact_brass_mirror_fragment", "type": "artifact", "name": "Brass Mirror Fragment", "image": "assets/artifacts_1/brass_mirror_fragment.png", "maxLevel": 3},
+      {"id": "artifact_broken_root", "type": "artifact", "name": "Broken Root", "image": "assets/artifacts_1/broken_root.png", "maxLevel": 4},
+      {"id": "artifact_broken_mirror", "type": "artifact", "name": "Broken Mirror", "image": "assets/artifacts_1/broken_mirror.png", "maxLevel": 1},
+      {"id": "artifact_broken_sapphire", "type": "artifact", "name": "Broken Sapphire", "image": "assets/artifacts_1/broken_sapphire.png", "maxLevel": 2},
+      {"id": "artifact_chalcedony_key", "type": "artifact", "name": "Chalcedony Key", "image": "assets/artifacts_1/chalcedony_key.png", "maxLevel": 3},
+      {"id": "artifact_cintamani_stone", "type": "artifact", "name": "Cintamani Stone", "image": "assets/artifacts_1/cintamani_stone.png", "maxLevel": 0},
+      {"id": "artifact_excitiong_custard_pastry", "type": "artifact", "name": "Excitiong Custard Pastry", "image": "assets/artifacts_1/excitiong_custard_pastry.png", "maxLevel": 2},
+      {"id": "artifact_cloak_of_verdant_spirit", "type": "artifact", "name": "Cloak Of Verdant Spirit", "image": "assets/artifacts_1/cloak_of_verdant_spirit.png", "maxLevel": 3},
+      {"id": "artifact_cloth_armor", "type": "artifact", "name": "Cloth Armor", "image": "assets/artifacts_1/cloth_armor.png", "maxLevel": 1},
+      {"id": "artifact_cloud_bottle", "type": "artifact", "name": "Cloud Bottle", "image": "assets/artifacts_1/cloud_bottle.png", "maxLevel": 5},
+      {"id": "artifact_meteorite_earrings", "type": "artifact", "name": "Meteorite Earrings", "image": "assets/artifacts_1/meteorite_earrings.png", "maxLevel": 2},
+      {"id": "artifact_cloud_seed_arrowhead", "type": "artifact", "name": "Cloud Seed Arrowhead", "image": "assets/artifacts_1/cloud_seed_arrowhead.png", "maxLevel": 5},
+      {"id": "artifact_meteorite_pauldrons", "type": "artifact", "name": "Meteorite Pauldrons", "image": "assets/artifacts_1/meteorite_pauldrons.png", "maxLevel": 4},
+      {"id": "artifact_cold_lock", "type": "artifact", "name": "Cold Lock", "image": "assets/artifacts_1/cold_lock.png", "maxLevel": 4},
+      {"id": "artifact_clear_cube", "type": "artifact", "name": "Clear Cube", "image": "assets/artifacts_1/clear_cube.png", "maxLevel": 4},
+      {"id": "artifact_battle_mage's_gloves", "type": "artifact", "name": "Battle Mage's Gloves", "image": "assets/artifacts_1/battle_mage's_gloves.png", "maxLevel": 3},
+      {"id": "artifact_compression_bandage", "type": "artifact", "name": "Compression Bandage", "image": "assets/artifacts_1/compression_bandage.png", "maxLevel": 2},
+      {"id": "artifact_orb_of_yearning", "type": "artifact", "name": "Orb Of Yearning", "image": "assets/artifacts_1/orb_of_yearning.png", "maxLevel": 3},
+      {"id": "artifact_kriton's_seal", "type": "artifact", "name": "Kriton's Seal", "image": "assets/artifacts_1/kriton's_seal.png", "maxLevel": 2},
+      {"id": "artifact_crossbow_quiver", "type": "artifact", "name": "Crossbow Quiver", "image": "assets/artifacts_1/crossbow_quiver.webp", "maxLevel": 3},
+      {"id": "artifact_crystal_of_harmony", "type": "artifact", "name": "Crystal Of Harmony", "image": "assets/artifacts_1/crystal_of_harmony.png", "maxLevel": 1},
+      {"id": "artifact_faultfinder_needle", "type": "artifact", "name": "Faultfinder Needle", "image": "assets/artifacts_1/faultfinder_needle.png", "maxLevel": 6},
+      {"id": "artifact_discarded_golden_ring", "type": "artifact", "name": "Discarded Golden Ring", "image": "assets/artifacts_1/discarded_golden_ring.png", "maxLevel": 2},
+      {"id": "artifact_dried_flower", "type": "artifact", "name": "Dried Flower", "image": "assets/artifacts_1/dried_flower.png", "maxLevel": 2},
+      {"id": "artifact_dull_bell", "type": "artifact", "name": "Dull Bell", "image": "assets/artifacts_1/dull_bell.png", "maxLevel": 2},
+      {"id": "artifact_elastic_band", "type": "artifact", "name": "Elastic Band", "image": "assets/artifacts_1/elastic_band.png", "maxLevel": 2},
+      {"id": "artifact_hiring_crest_'collin'", "type": "artifact", "name": "Hiring Crest 'Collin'", "image": "assets/artifacts_1/hiring_crest_'collin'.png", "maxLevel": 3},
+      {"id": "artifact_empty_hilt", "type": "artifact", "name": "Empty Hilt", "image": "assets/artifacts_1/empty_hilt.png", "maxLevel": 2},
+      {"id": "artifact_endoditte's_paperweight", "type": "artifact", "name": "Endoditte's Paperweight", "image": "assets/artifacts_1/endoditte's_paperweight.png", "maxLevel": 2},
+      {"id": "artifact_eternal_furnace", "type": "artifact", "name": "Eternal Furnace", "image": "assets/artifacts_1/eternal_furnace.png", "maxLevel": 2},
+      {"id": "artifact_eternal_eclipse", "type": "artifact", "name": "Eternal Eclipse", "image": "assets/artifacts_1/eternal_eclipse.png", "maxLevel": 3},
+      {"id": "artifact_eternal_winter", "type": "artifact", "name": "Eternal Winter", "image": "assets/artifacts_1/eternal_winter.png", "maxLevel": 2},
+      {"id": "artifact_snowflake_necklace", "type": "artifact", "name": "Snowflake Necklace", "image": "assets/artifacts_1/snowflake_necklace.png", "maxLevel": 2},
+      {"id": "artifact_captivating_lure", "type": "artifact", "name": "Captivating Lure", "image": "assets/artifacts_1/captivating_lure.webp", "maxLevel": 2},
+      {"id": "artifact_fire_arrow", "type": "artifact", "name": "Fire Arrow", "image": "assets/artifacts_1/fire_arrow.png", "maxLevel": 2},
+      {"id": "artifact_fire_bolt", "type": "artifact", "name": "Fire Bolt", "image": "assets/artifacts_1/fire_bolt.png", "maxLevel": 1},
+      {"id": "artifact_fire_circus", "type": "artifact", "name": "Fire Circus", "image": "assets/artifacts_1/fire_circus.png", "maxLevel": 3},
+      {"id": "artifact_firefly", "type": "artifact", "name": "Firefly", "image": "assets/artifacts_1/firefly.webp", "maxLevel": 2},
+      {"id": "artifact_banner_of_encouragement", "type": "artifact", "name": "Banner Of Encouragement", "image": "assets/artifacts_1/banner_of_encouragement.png", "maxLevel": 2},
+      {"id": "artifact_flaming_eye_patch", "type": "artifact", "name": "flaming_eye_patch", "image": "assets/artifacts_1/flaming_eye_patch.png", "maxLevel": 2},
+      {"id": "artifact_flame_bug", "type": "artifact", "name": "Flame Bug", "image": "assets/artifacts_1/flame_bug.png", "maxLevel": 5},
+      {"id": "artifact_flame_herb_root", "type": "artifact", "name": "Flame Herb Root", "image": "assets/artifacts_1/flame_herb_root.png", "maxLevel": 2},
+      {"id": "artifact_solis_fracto", "type": "artifact", "name": "Solis Fracto", "image": "assets/artifacts_1/solis_fracto.png", "maxLevel": 2},
+      {"id": "artifact_fluffy_fur_gloves", "type": "artifact", "name": "Fluffy Fur Gloves", "image": "assets/artifacts_1/fluffy_fur_gloves.png", "maxLevel": 4},
+      {"id": "artifact_radiating_charm", "type": "artifact", "name": "Radiating Charm", "image": "assets/artifacts_1/radiating_charm.png", "maxLevel": 4},
+      {"id": "artifact_flux_coupler_mk.2", "type": "artifact", "name": "Flux Coupler Mk.2", "image": "assets/artifacts_1/flux_coupler_mk.2.png", "maxLevel": 3},
+      {"id": "artifact_ice_bug", "type": "artifact", "name": "Ice Bug", "image": "assets/artifacts_1/ice_bug.png", "maxLevel": 5},
+      {"id": "artifact_frost_dagger", "type": "artifact", "name": "Frost Dagger", "image": "assets/artifacts_1/frost_dagger.png", "maxLevel": 4},
+      {"id": "artifact_frozen_bow", "type": "artifact", "name": "Frozen Bow", "image": "assets/artifacts_1/frozen_bow.png", "maxLevel": 5},
+      {"id": "artifact_frozen_egg", "type": "artifact", "name": "Frozen Egg", "image": "assets/artifacts_1/frozen_egg.png", "maxLevel": 3},
+      {"id": "artifact_frozen_heart", "type": "artifact", "name": "Frozen Heart", "image": "assets/artifacts_1/frozen_heart.png", "maxLevel": 7},
+      {"id": "artifact_scabbard_of_exorcism", "type": "artifact", "name": "Scabbard Of Exorcism", "image": "assets/artifacts_1/scabbard_of_exorcism.png", "maxLevel": 6},
+      {"id": "artifact_giant_telescope", "type": "artifact", "name": "Giant Telescope", "image": "assets/artifacts_1/giant_telescope.png", "maxLevel": 1},
+      {"id": "artifact_kirin's_horn", "type": "artifact", "name": "Kirin's Horn", "image": "assets/artifacts_1/kirin's_horn.png", "maxLevel": 2},
+      {"id": "artifact_echo_of_the_glacier", "type": "artifact", "name": "Echo Of The Glacier", "image": "assets/artifacts_1/echo_of_the_glacier.png", "maxLevel": 3},
+      {"id": "artifact_glass_hammer", "type": "artifact", "name": "Glass Hammer", "image": "assets/artifacts_1/glass_hammer.png", "maxLevel": 3},
+      {"id": "artifact_golden_cloak", "type": "artifact", "name": "Golden Cloak", "image": "assets/artifacts_1/golden_cloak.png", "maxLevel": 2},
+      {"id": "artifact_golden_handbell", "type": "artifact", "name": "Golden Handbell", "image": "assets/artifacts_1/golden_handbell.png", "maxLevel": 8},
+      {"id": "artifact_golden_maple_leaf", "type": "artifact", "name": "Golden Maple Leaf", "image": "assets/artifacts_1/golden_maple_leaf.png", "maxLevel": 0},
+      {"id": "artifact_great_blessing", "type": "artifact", "name": "Great Blessing", "image": "assets/artifacts_1/great_blessing.png", "maxLevel": 2},
+      {"id": "artifact_green_gi", "type": "artifact", "name": "Green Gi", "image": "assets/artifacts_1/green_gi.png", "maxLevel": 3},
+      {"id": "artifact_blue_ink_bottle", "type": "artifact", "name": "Blue Ink Bottle", "image": "assets/artifacts_1/blue_ink_bottle.png", "maxLevel": 3},
+      {"id": "artifact_green_sawblade", "type": "artifact", "name": "Green Sawblade", "image": "assets/artifacts_1/green_sawblade.png", "maxLevel": 0},
+      {"id": "artifact_hand_mirror", "type": "artifact", "name": "Hand Mirror", "image": "assets/artifacts_1/hand_mirror.png", "maxLevel": 2},
+      {"id": "artifact_haste", "type": "artifact", "name": "Haste", "image": "assets/artifacts_1/haste.png", "maxLevel": 2},
+      {"id": "artifact_beast's_heart", "type": "artifact", "name": "Beast's Heart", "image": "assets/artifacts_2/beast's_heart.png", "maxLevel": 4},
+      {"id": "artifact_heart-shaped_carrot", "type": "artifact", "name": "Heart-shaped carrot", "image": "assets/artifacts_2/heart-shaped_carrot.webp", "maxLevel": 4},
+      {"id": "artifact_heita's_spirit_powder", "type": "artifact", "name": "Heita's Spirit Powder", "image": "assets/artifacts_2/heita's_spirit_powder.png", "maxLevel": 4},
+      {"id": "artifact_helana's_model_stairway", "type": "artifact", "name": "Helana's Model Stairway", "image": "assets/artifacts_2/helana's_model_stairway.png", "maxLevel": 5},
+      {"id": "artifact_crown_of_humility", "type": "artifact", "name": "Crown Of Humility", "image": "assets/artifacts_2/crown_of_humility.png", "maxLevel": 4},
+      {"id": "artifact_ice_bolt", "type": "artifact", "name": "Ice Bolt", "image": "assets/artifacts_2/ice_bolt.png", "maxLevel": 1},
+      {"id": "artifact_thunderfrost_butterfly", "type": "artifact", "name": "Thunderfrost Butterfly", "image": "assets/artifacts_2/thunderfrost_butterfly.png", "maxLevel": 3},
+      {"id": "artifact_feet_of_the_ice_gull", "type": "artifact", "name": "Feet Of The Ice Gull", "image": "assets/artifacts_2/feet_of_the_ice_gull.png", "maxLevel": 3},
+      {"id": "artifact_ice_vine", "type": "artifact", "name": "Ice Vine", "image": "assets/artifacts_2/ice_vine.png", "maxLevel": 2},
+      {"id": "artifact_ice_star", "type": "artifact", "name": "Ice Star", "image": "assets/artifacts_2/ice_star.png", "maxLevel": 5},
+      {"id": "artifact_ice_wings", "type": "artifact", "name": "Ice Wings", "image": "assets/artifacts_2/ice_wings.png", "maxLevel": 7},
+      {"id": "artifact_rainbow_feather", "type": "artifact", "name": "Rainbow Feather", "image": "assets/artifacts_2/rainbow_feather.png", "maxLevel": 2},
+      {"id": "artifact_jeweled_armor", "type": "artifact", "name": "Jeweled Armor", "image": "assets/artifacts_2/jeweled_armor.png", "maxLevel": 2},
+      {"id": "artifact_kaleidoscope", "type": "artifact", "name": "Kaleidoscope", "image": "assets/artifacts_2/kaleidoscope.png", "maxLevel": 4},
+      {"id": "artifact_keel_fragment", "type": "artifact", "name": "Keel Fragment", "image": "assets/artifacts_2/keel_fragment.png", "maxLevel": 3},
+      {"id": "artifact_kunai", "type": "artifact", "name": "Kunai", "image": "assets/artifacts_2/kunai.png", "maxLevel": 2},
+      {"id": "artifact_leaf_bird_leather", "type": "artifact", "name": "Leaf Bird Leather", "image": "assets/artifacts_2/leaf_bird_leather.png", "maxLevel": 3},
+      {"id": "artifact_battle_bracelet_of_lerid", "type": "artifact", "name": "Battle Bracelet Of Lerid", "image": "assets/artifacts_2/battle_bracelet_of_lerid.png", "maxLevel": 3},
+      {"id": "artifact_scale_of_conflict", "type": "artifact", "name": "Scale Of Conflict", "image": "assets/artifacts_2/scale_of_conflict.png", "maxLevel": 5},
+      {"id": "artifact_library_minute_hand_miniature", "type": "artifact", "name": "Library Minute Hand Miniature", "image": "assets/artifacts_2/library_minute_hand_miniature.png", "maxLevel": 2},
+      {"id": "artifact_charm_of_lightning", "type": "artifact", "name": "Charm Of Lightning", "image": "assets/artifacts_2/charm_of_lightning.png", "maxLevel": 3},
+      {"id": "artifact_lightning_bolt", "type": "artifact", "name": "Lightning Bolt", "image": "assets/artifacts_2/lightning_bolt.png", "maxLevel": 1},
+      {"id": "artifact_electro_chakram", "type": "artifact", "name": "Electro Chakram", "image": "assets/artifacts_2/electro_chakram.png", "maxLevel": 4},
+      {"id": "artifact_lightning_rod", "type": "artifact", "name": "Lightning Rod", "image": "assets/artifacts_2/lightning_rod.png", "maxLevel": 4},
+      {"id": "artifact_lightning-struck_branch", "type": "artifact", "name": "Lightning-struck Branch", "image": "assets/artifacts_2/lightning-struck_branch.png", "maxLevel": 2},
+      {"id": "artifact_lightning_boomerang", "type": "artifact", "name": "Lightning Boomerang", "image": "assets/artifacts_2/lightning_boomerang.png", "maxLevel": 4},
+      {"id": "artifact_lightstone", "type": "artifact", "name": "Lightstone", "image": "assets/artifacts_2/lightstone.png", "maxLevel": 6},
+      {"id": "artifact_riposte_blade_fragment", "type": "artifact", "name": "Riposte Blade Fragment", "image": "assets/artifacts_2/riposte_blade_fragment.png", "maxLevel": 5},
+      {"id": "artifact_lizard_sheet", "type": "artifact", "name": "Lizard Sheet", "image": "assets/artifacts_2/lizard_sheet.png", "maxLevel": 4},
+      {"id": "artifact_lucky_medal", "type": "artifact", "name": "Lucky Medal", "image": "assets/artifacts_2/lucky_medal.png", "maxLevel": 2},
+      {"id": "artifact_magic_carrot", "type": "artifact", "name": "Magic Carrot", "image": "assets/artifacts_2/magic_carrot.png", "maxLevel": 4},
+      {"id": "artifact_standards_of_magic", "type": "artifact", "name": "Standards Of Magic", "image": "assets/artifacts_2/standards_of_magic.png", "maxLevel": 4},
+      {"id": "artifact_magic_glasses", "type": "artifact", "name": "Magic Glasses", "image": "assets/artifacts_2/magic_glasses.png", "maxLevel": 3},
+      {"id": "artifact_magma_bead", "type": "artifact", "name": "Magma Bead", "image": "assets/artifacts_2/magma_bead.png", "maxLevel": 3},
+      {"id": "artifact_warrior_seal", "type": "artifact", "name": "Warrior Seal", "image": "assets/artifacts_2/warrior_seal.png", "maxLevel": 5},
+      {"id": "artifact_model_mast", "type": "artifact", "name": "Model Mast", "image": "assets/artifacts_2/model_mast.png", "maxLevel": 2},
+      {"id": "artifact_meditation_book", "type": "artifact", "name": "Meditation Book", "image": "assets/artifacts_2/meditation_book.png", "maxLevel": 3},
+      {"id": "artifact_meteor_shower", "type": "artifact", "name": "Meteor Shower", "image": "assets/artifacts_2/meteor_shower.png", "maxLevel": 3},
+      {"id": "artifact_mini_ballista", "type": "artifact", "name": "Mini Ballista", "image": "assets/artifacts_2/mini_ballista.png", "maxLevel": 4},
+      {"id": "artifact_model_beak", "type": "artifact", "name": "Model Beak", "image": "assets/artifacts_2/model_beak.png", "maxLevel": 4},
+      {"id": "artifact_multipurpose_belt", "type": "artifact", "name": "Multipurpose Belt", "image": "assets/artifacts_2/multipurpose_belt.png", "maxLevel": 3},
+      {"id": "artifact_multicolored_candy_glass_jar", "type": "artifact", "name": "Multicolored Candy Glass Jar", "image": "assets/artifacts_2/multicolored_candy_glass_jar.png", "maxLevel": 3},
+      {"id": "artifact_mystical_pendulum", "type": "artifact", "name": "Mystical Pendulum", "image": "assets/artifacts_2/mystical_pendulum.png", "maxLevel": 4},
+      {"id": "artifact_neutralizer_noir", "type": "artifact", "name": "Neutralizer Noir", "image": "assets/artifacts_2/neutralizer_noir.png", "maxLevel": 3},
+      {"id": "artifact_blood_of_obrus", "type": "artifact", "name": "Blood Of Obrus", "image": "assets/artifacts_2/blood_of_obrus.png", "maxLevel": 3},
+      {"id": "artifact_ohia_lehua", "type": "artifact", "name": "Ohia Lehua", "image": "assets/artifacts_2/ohia_lehua.webp", "maxLevel": 2},
+      {"id": "artifact_oink_shaman's_necklace", "type": "artifact", "name": "Oink Shaman's Necklace", "image": "assets/artifacts_2/oink_shaman's_necklace.png", "maxLevel": 4},
+      {"id": "artifact_mining_supervisor_armband", "type": "artifact", "name": "Mining Supervisor Armband", "image": "assets/artifacts_2/mining_supervisor_armband.png", "maxLevel": 4},
+      {"id": "artifact_palas'_card", "type": "artifact", "name": "Palas' Card", "image": "assets/artifacts_2/palas'_card.png", "maxLevel": 4},
+      {"id": "artifact_pearl_dust", "type": "artifact", "name": "Pearl Dust", "image": "assets/artifacts_2/pearl_dust.png", "maxLevel": 2},
+      {"id": "artifact_stone_flower", "type": "artifact", "name": "Stone Flower", "image": "assets/artifacts_2/stone_flower.png", "maxLevel": 1},
+      {"id": "artifact_phoenix_wing", "type": "artifact", "name": "Phoenix Wing", "image": "assets/artifacts_2/phoenix_wing.png", "maxLevel": 2},
+      {"id": "artifact_scrap_of_red_cloth", "type": "artifact", "name": "Scrap Of Red Cloth", "image": "assets/artifacts_2/scrap_of_red_cloth.webp", "maxLevel": 3},
+      {"id": "artifact_bucket_of_plump_berries", "type": "artifact", "name": "Bucket Of Plump Berries", "image": "assets/artifacts_2/bucket_of_plump_berries.png", "maxLevel": 1},
+      {"id": "artifact_sharp_acorn", "type": "artifact", "name": "Sharp Acorn", "image": "assets/artifacts_2/sharp_acorn.webp", "maxLevel": 3},
+      {"id": "artifact_pointed_club", "type": "artifact", "name": "Pointed_Club", "image": "assets/artifacts_2/pointed_club.png", "maxLevel": 2},
+      {"id": "artifact_pan_lid", "type": "artifact", "name": "Pan Lid", "image": "assets/artifacts_2/pan_lid.png", "maxLevel": 5},
+      {"id": "artifact_golden_crown_of_arrogance", "type": "artifact", "name": "Golden Crown Of Arrogance", "image": "assets/artifacts_2/golden_crown_of_arrogance.png", "maxLevel": 4},
+      {"id": "artifact_frostium_ring", "type": "artifact", "name": "Frostium Ring", "image": "assets/artifacts_2/frostium_ring.png", "maxLevel": 2},
+      {"id": "artifact_white_cape", "type": "artifact", "name": "White Cape", "image": "assets/artifacts_2/white_cape.png", "maxLevel": 5},
+      {"id": "artifact_bunnyville_guard_helmet", "type": "artifact", "name": "Bunnyville Guard Helmet", "image": "assets/artifacts_2/bunnyville_guard_helmet.webp", "maxLevel": 3},
+      {"id": "artifact_mouse_mage's_pendant", "type": "artifact", "name": "Mouse Mage's Pendant", "image": "assets/artifacts_2/mouse_mage's_pendant.png", "maxLevel": 1},
+      {"id": "artifact_ray's_star_fragment", "type": "artifact", "name": "Ray's Star Fragment", "image": "assets/artifacts_2/ray's_star_fragment.png", "maxLevel": 3},
+      {"id": "artifact_red_mist", "type": "artifact", "name": "Red Mist", "image": "assets/artifacts_2/red_mist.webp", "maxLevel": 3},
+      {"id": "artifact_red_planet", "type": "artifact", "name": "Red Planet", "image": "assets/artifacts_2/red_planet.webp", "maxLevel": 6},
+      {"id": "artifact_red_snake_eyes", "type": "artifact", "name": "Red Snake Eyes", "image": "assets/artifacts_2/red_snake_eyes.png", "maxLevel": 5},
+      {"id": "artifact_ball_of_red_yarn", "type": "artifact", "name": "Ball Of Red Yarn", "image": "assets/artifacts_2/ball_of_red_yarn.png", "maxLevel": 4},
+      {"id": "artifact_enhancement_potion_cap", "type": "artifact", "name": "Enhancement Potion Cap", "image": "assets/artifacts_2/enhancement_potion_cap.webp", "maxLevel": 0},
+      {"id": "artifact_reloading_wooden_crate", "type": "artifact", "name": "Reloading Wooden Crate", "image": "assets/artifacts_2/reloading_wooden_crate.png", "maxLevel": 4},
+      {"id": "artifact_rylie's_pocket_watch", "type": "artifact", "name": "Rylie's Pocket Watch", "image": "assets/artifacts_2/rylie's_pocket_watch.png", "maxLevel": 2},
+      {"id": "artifact_rock_elephant", "type": "artifact", "name": "Rock Elephant", "image": "assets/artifacts_2/rock_elephant.png", "maxLevel": 4},
+      {"id": "artifact_ruby_brooch", "type": "artifact", "name": "Ruby Brooch", "image": "assets/artifacts_2/ruby_brooch.png", "maxLevel": 3},
+      {"id": "artifact_sapote_fruit", "type": "artifact", "name": "Sapote Fruit", "image": "assets/artifacts_2/sapote_fruit.png", "maxLevel": 3},
+      {"id": "artifact_icebound_tejas", "type": "artifact", "name": "Icebound Tejas", "image": "assets/artifacts_2/icebound_tejas.png", "maxLevel": 3},
+      {"id": "artifact_seren's_rushed_letter", "type": "artifact", "name": "Seren's Rushed Letter", "image": "assets/artifacts_2/seren's_rushed_letter.png", "maxLevel": 2},
+      {"id": "artifact_sharp_eye", "type": "artifact", "name": "Sharp Eye", "image": "assets/artifacts_2/sharp_eye.png", "maxLevel": 2},
+      {"id": "artifact_wind_sheet_music", "type": "artifact", "name": "Wind Sheet Music", "image": "assets/artifacts_2/wind_sheet_music.png", "maxLevel": 4},
+      {"id": "artifact_sheet_music_'galaxy'", "type": "artifact", "name": "Sheet Music 'Galaxy'", "image": "assets/artifacts_2/sheet_music_'galaxy'.png", "maxLevel": 2},
+      {"id": "artifact_sheet_music_'the_typhoon'", "type": "artifact", "name": "Sheet Music 'The Typhoon'", "image": "assets/artifacts_2/sheet_music_'the_typhoon'.png", "maxLevel": 2},
+      {"id": "artifact_barrier", "type": "artifact", "name": "Barrier", "image": "assets/artifacts_2/barrier.webp", "maxLevel": 1},
+      {"id": "artifact_shield_bag", "type": "artifact", "name": "Shield Bag", "image": "assets/artifacts_2/shield_bag.png", "maxLevel": 3},
+      {"id": "artifact_shield_earrings", "type": "artifact", "name": "Shield Earrings", "image": "assets/artifacts_2/shield_earrings.webp", "maxLevel": 3},
+      {"id": "artifact_shield_mate", "type": "artifact", "name": "Shield Mate", "image": "assets/artifacts_2/shield_mate.png", "maxLevel": 5},
+      {"id": "artifact_shield_training_manual", "type": "artifact", "name": "Shield Training Manual", "image": "assets/artifacts_2/shield_training_manual.png", "maxLevel": 1},
+      {"id": "artifact_glowing_hourglass", "type": "artifact", "name": "Glowing Hourglass", "image": "assets/artifacts_2/glowing_hourglass.png", "maxLevel": 3},
+      {"id": "artifact_impact_amplifier", "type": "artifact", "name": "Impact Amplifier", "image": "assets/artifacts_2/impact_amplifier.png", "maxLevel": 14},
+      {"id": "artifact_silver_bracelet", "type": "artifact", "name": "Silver Bracelet", "image": "assets/artifacts_2/silver_bracelet.png", "maxLevel": 3},
+      {"id": "artifact_silver_plate", "type": "artifact", "name": "Silver Plate", "image": "assets/artifacts_2/silver_plate.png", "maxLevel": 2},
+      {"id": "artifact_simple_contract", "type": "artifact", "name": "Simple Contract", "image": "assets/artifacts_2/simple_contract.png", "maxLevel": 4},
+      {"id": "artifact_oak_tree_coal", "type": "artifact", "name": "Oak Tree Coal", "image": "assets/artifacts_2/oak_tree_coal.webp", "maxLevel": 4},
+      {"id": "artifact_six-leaf_clover", "type": "artifact", "name": "Six-leaf Clover", "image": "assets/artifacts_2/six-leaf_clover.png", "maxLevel": 3},
+      {"id": "artifact_sky_blue_planet", "type": "artifact", "name": "Sky Blue Planet", "image": "assets/artifacts_2/sky_blue_planet.png", "maxLevel": 5},
+      {"id": "artifact_tiny_magic_conch", "type": "artifact", "name": "Tiny Magic Conch", "image": "assets/artifacts_2/small_magic.png", "maxLevel": 2},
+      {"id": "artifact_smoke_screen", "type": "artifact", "name": "Smoke Screen", "image": "assets/artifacts_2/smoke_screen.png", "maxLevel": 0},
+      {"id": "artifact_blizzard_hammer", "type": "artifact", "name": "Blizzard Hammer", "image": "assets/artifacts_2/blizzard_hammer.png", "maxLevel": 5},
+      {"id": "artifact_solis_dekri", "type": "artifact", "name": "Solis Dekri", "image": "assets/artifacts_2/solis_decree.png", "maxLevel": 6},
+      {"id": "artifact_solis_decussa", "type": "artifact", "name": "Solis Decussa", "image": "assets/artifacts_2/solis_decussa.png", "maxLevel": 3},
+      {"id": "artifact_solis_parvo", "type": "artifact", "name": "Solis Parvo", "image": "assets/artifacts_2/solis_parvo.png", "maxLevel": 4},
+      {"id": "artifact_solis_fracto", "type": "artifact", "name": "solis_fracto", "image": "assets/artifacts_2/solis_fracto.png", "maxLevel": 2},
+      {"id": "artifact_thrust_manual", "type": "artifact", "name": "Thrust Manual", "image": "assets/artifacts_3/thrust_manual.png", "maxLevel": 0},
+      {"id": "artifact_star_aquamarine", "type": "artifact", "name": "Star Aquamarine", "image": "assets/artifacts_3/star_aquamarine.png", "maxLevel": 2},
+      {"id": "artifact_star_ruby", "type": "artifact", "name": "Star Ruby", "image": "assets/artifacts_3/star_ruby.png", "maxLevel": 2},
+      {"id": "artifact_zap_bug", "type": "artifact", "name": "Zap Bug", "image": "assets/artifacts_3/zap_bug.png", "maxLevel": 5},
+      {"id": "artifact_stone_spindle_whorl", "type": "artifact", "name": "Stone Spindle Whorl", "image": "assets/artifacts_3/stone_spindle_whorl.png", "maxLevel": 4},
+      {"id": "artifact_sharp_flint", "type": "artifact", "name": "Sharp Flint", "image": "assets/artifacts_3/sharp_flint.webp", "maxLevel": 3},
+      {"id": "artifact_straw_doll", "type": "artifact", "name": "Straw Doll", "image": "assets/artifacts_3/straw_doll.png", "maxLevel": 2},
+      {"id": "artifact_crimson_sunset", "type": "artifact", "name": "Crimson Sunset", "image": "assets/artifacts_3/crimson_sunset.png", "maxLevel": 4},
+      {"id": "artifact_shimmering_eyes", "type": "artifact", "name": "Shimmering Eyes", "image": "assets/artifacts_3/shimmering_eyes.png", "maxLevel": 4},
+      {"id": "artifact_sword_earrings", "type": "artifact", "name": "Sword Earrings", "image": "assets/artifacts_3/sword_earrings.webp", "maxLevel": 3},
+      {"id": "artifact_sword_training_manual", "type": "artifact", "name": "Sword Training Manual", "image": "assets/artifacts_3/sword_training_manual.png", "maxLevel": 2},
+      {"id": "artifact_tactical_manual", "type": "artifact", "name": "Tactical Manual", "image": "assets/artifacts_3/tactical_manual.png", "maxLevel": 3},
+      {"id": "artifact_charm_of_skill", "type": "artifact", "name": "Charm Of Skill", "image": "assets/artifacts_3/charm_of_skill.png", "maxLevel": 1},
+      {"id": "artifact_tero's_spirit_powder", "type": "artifact", "name": "Tero's Spirit Powder", "image": "assets/artifacts_3/tero's_spirit_powder.png", "maxLevel": 5},
+      {"id": "artifact_slim_cushion", "type": "artifact", "name": "Slim Cushion", "image": "assets/artifacts_3/slim_cushion.png", "maxLevel": 6},
+      {"id": "artifact_spiny_shell", "type": "artifact", "name": "Spiny Shell", "image": "assets/artifacts_3/spiny_shell.png", "maxLevel": 2},
+      {"id": "artifact_thorn_bush", "type": "artifact", "name": "Thorn Bush", "image": "assets/artifacts_3/thorn_bush.png", "maxLevel": 4},
+      {"id": "artifact_thunder_armor", "type": "artifact", "name": "Thunder Armor", "image": "assets/artifacts_3/thunder_armor.png", "maxLevel": 4},
+      {"id": "artifact_judgment_of_thunder", "type": "artifact", "name": "Judgment Of Thunder", "image": "assets/artifacts_3/judgment_of_thunder.png", "maxLevel": 4},
+      {"id": "artifact_thunder's_earring", "type": "artifact", "name": "Thunder's Earring", "image": "assets/artifacts_3/thunder's_earring.png", "maxLevel": 5},
+      {"id": "artifact_vital_touch", "type": "artifact", "name": "Vital Touch", "image": "assets/artifacts_3/vital_touch.png", "maxLevel": 3},
+      {"id": "artifact_tuning_fork", "type": "artifact", "name": "Tuning Fork", "image": "assets/artifacts_3/tuning_fork.png", "maxLevel": 4},
+      {"id": "artifact_unalloyed_gold_needle", "type": "artifact", "name": "Unalloyed Gold Needle", "image": "assets/artifacts_3/unalloyed_gold_needle.png", "maxLevel": 2},
+      {"id": "artifact_tainted_bandage", "type": "artifact", "name": "Tainted Bandage", "image": "assets/artifacts_3/tainted_bandage.png", "maxLevel": 3},
+      {"id": "artifact_pinwheel", "type": "artifact", "name": "Pinwheel", "image": "assets/artifacts_3/pinwheel.png", "maxLevel": 2},
+      {"id": "artifact_thorn_charm", "type": "artifact", "name": "Thorn Charm", "image": "assets/artifacts_3/thorn_charm.png", "maxLevel": 3},
+      {"id": "artifact_voluspa", "type": "artifact", "name": "Voluspa", "image": "assets/artifacts_3/voluspa.png", "maxLevel": 5},
+      {"id": "artifact_valter's_work_monocle", "type": "artifact", "name": "Valter's Work Monocle", "image": "assets/artifacts_3/valter's_work_monocle.png", "maxLevel": 4},
+      {"id": "artifact_wanderer's_necklace", "type": "artifact", "name": "Wanderer's Necklace", "image": "assets/artifacts_3/wanderer's_necklace.png", "maxLevel": 2},
+      {"id": "artifact_warm_stone", "type": "artifact", "name": "Warm Stone", "image": "assets/artifacts_3/warm_stone.png", "maxLevel": 3},
+      {"id": "artifact_warning", "type": "artifact", "name": "Warning", "image": "assets/artifacts_3/warning.webp", "maxLevel": 1},
+      {"id": "artifact_water_bag", "type": "artifact", "name": "Water Bag", "image": "assets/artifacts_3/water_bag.png", "maxLevel": 3},
+      {"id": "artifact_droplet_of_plitvice", "type": "artifact", "name": "Droplet Of Plitvice", "image": "assets/artifacts_3/droplet_of_plitvice.png", "maxLevel": 0},
+      {"id": "artifact_waters", "type": "artifact", "name": "Waters", "image": "assets/artifacts_3/waters.png", "maxLevel": 0},
+      {"id": "artifact_white_crust_bread", "type": "artifact", "name": "White Crust Bread", "image": "assets/artifacts_3/white_crust_bread.png", "maxLevel": 2},
+      {"id": "artifact_white_eggshell", "type": "artifact", "name": "White Eggshell", "image": "assets/artifacts_3/white_eggshell.png", "maxLevel": 4},
+      {"id": "artifact_white_paper", "type": "artifact", "name": "White Paper", "image": "assets/artifacts_3/white_paper.png", "maxLevel": 1},
+      {"id": "artifact_white_planet", "type": "artifact", "name": "White Planet", "image": "assets/artifacts_3/white_planet.png", "maxLevel": 7},
+      {"id": "artifact_white_branch", "type": "artifact", "name": "White Branch", "image": "assets/artifacts_3/white_branch.webp", "maxLevel": 4},
+      {"id": "artifact_windgrass_scarf", "type": "artifact", "name": "Windgrass Scarf", "image": "assets/artifacts_3/windgrass_scarf.png", "maxLevel": 3},
+      {"id": "artifact_wings", "type": "artifact", "name": "Wings", "image": "assets/artifacts_3/wings.png", "maxLevel": 5},
+      {"id": "artifact_mage's_coin", "type": "artifact", "name": "Mage's Coin", "image": "assets/artifacts_3/mage's_coin.png", "maxLevel": 2},
+      {"id": "artifact_yellow_planet", "type": "artifact", "name": "Yellow Planet", "image": "assets/artifacts_3/yellow_planet.png", "maxLevel": 6}];
+    const typeNames = { slate:'석판', artifact:'아티팩트' };
+    const rarityNames = { all:'등급 전체', common:'일반', competitive:'경쟁', rare:'희귀', legendary:'전설' };
+    const NO_ROTATE_SLATES = new Set(["slate_base", "slate_boundary", "slate_cheer", "slate_concurrency", "slate_disconnection", "slate_dry", "slate_entrance", "slate_exit", "slate_fate", "slate_hospitality", "slate_justice", "slate_shade", "slate_thorn", "slate_triceps", "slate_yearning", "slate_linear"]);
+    const rarityColors = { common:'#b8c1c8', competitive:'#4aa3ff', rare:'#c67cff', legendary:'#ffd45c' };
+    const ARTIFACT_MAX_LEVEL = 3;
+    function artifactMaxLevel(itemOrId) {
+      const item = typeof itemOrId === 'string' ? ITEMS.find(x=>x.id===itemOrId) : itemOrId;
+      const value = Number(item && item.maxLevel);
+      return Number.isFinite(value) && value > 0 ? value : ARTIFACT_MAX_LEVEL;
+    }
+    function artifactLevelText(itemOrId, count) {
+      const max = artifactMaxLevel(itemOrId);
+      const current = Math.max(0, Number(count) || 0);
+      return current >= max ? 'MAX' : current + '/' + max;
+    }
+    const statMeta = [['power','화력'],['speed','속도'],['guard','방어'],['luck','행운']];
+    let board = Array(initialBoardSize).fill(null);
+    let boardMarks = Array(initialBoardSize).fill(null);
+    let enhancementCounts = Array(initialBoardSize).fill(0);
+    let selected = null;
+    let currentType = 'artifact';
+    let currentRarity = 'all';
+    const priorityTargets = new Set();
+    const priorityOrder = [];
+    const noEnhanceTargets = new Set();
+    let selectMode = 'normal';
+    let slotMeta = Array.from({ length: initialBoardSize }, () => emptySlotMeta());
+    let mergeSourceIndex = null;
+    let selectedMergeSlate = null;
+
+    function emptySlotMeta() {
+      return { rotation:0, components:[] };
+    }
+
+    const SLATE_RULES = {
+  "slate_advance": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 0, "dc": 1, "mark": "plus" },
+      { "dr": 0, "dc": 2, "mark": "plus" },
+      { "dr": 0, "dc": 3, "mark": "plus" }
+    ]
+  },
+
+  "slate_agglutination": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" }
+    ],
+    "area": [
+      { "type": "belowAll", "mark": "minus" }
+    ]
+  },
+
+  "slate_beating": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" }
+    ]
+  },
+
+  "slate_binary_star": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": 2, "dc": 0, "mark": "plus" },
+      { "dr": 2, "dc": 0, "mark": "plus" }
+    ]
+  },
+
+  "slate_compete": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": -1, "mark": "minus" },
+      { "dr": -1, "dc": 0, "mark": "minus" }
+    ]
+  },
+
+  "slate_dedication": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" },
+      { "dr": 1, "dc": -1, "mark": "plus" },
+      { "dr": 1, "dc": 1, "mark": "plus" }
+    ]
+  },
+  
+  "slate_distribution": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_entrance": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_exit": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 1, "dc": -1, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_future": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_harvesting": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" }
+    ]
+  },
+  "slate_home-town": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": true
+    },
+    "pattern": [
+      { "dr": 0, "dc": 1, "mark": "ignore" }
+    ]
+  },
+
+  "slate_honor": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": -1, "mark": "plus" }
+    ]
+  },
+
+  "slate_joke": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "minus" },
+      { "dr": 0, "dc": 1, "mark": "minus" }
+    ]
+  },
+
+  "slate_justice": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "area": [
+      { "type": "sameColumn", "mark": "plus" }
+    ]
+  },
+
+  "slate_load": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -2, "dc": -1, "mark": "plus" }
+    ]
+  },
+
+  "slate_nurture": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "minus" },
+      { "dr": 0, "dc": -2, "mark": "minus" }
+    ]
+  },
+
+  "slate_past": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_preparation": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": 1, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_tide": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 1, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "minus" },
+      { "dr": 0, "dc": 1, "mark": "minus" }
+    ]
+  },
+
+  "slate_transition": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "area": [
+      { "type": "sameRow", "mark": "plus" },
+      { "type": "sameColumn", "mark": "minus" }
+    ]
+  },
+
+  "slate_triceps": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_yearning": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" }
+    ]
+  },
+
+  "slate_advent": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "minus" },
+      { "dr": 2, "dc": 0, "mark": "minus" }
+    ]
+  },
+
+  "slate_approximation": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_cheer": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+    ]
+  },
+
+  "slate_chivalry": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -2, "dc": -1, "mark": "plus" }
+    ]
+  },
+
+  "slate_dry": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" }
+    ]
+  },
+
+  "slate_exploitation": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 0, "dc": 1, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "minus" }
+    ]
+  },
+
+  "slate_fate": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 1, "dc": 0, "mark": "plus" }
+    ]
+  },
+
+  "slate_handshake": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" }
+    ]
+  },
+
+  "slate_hope": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_linear": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_sight": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": 1, "dc": 1, "mark": "minus" }
+    ]
+  },
+
+  "slate_unity": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "minus" },
+      { "dr": 0, "dc": -1, "mark": "minus" }
+    ]
+  },
+
+  "slate_wit": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" }
+    ]
+  },
+
+  "slate_boundary": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "area": [
+      { "type": "topRow", "mark": "plus" },
+      { "type": "bottomRow", "mark": "plus" }
+    ]
+  },
+
+  "slate_certitude": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" }
+    ]
+  },
+
+  "slate_compression": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": -3, "dc": 0, "mark": "plus" },
+    ]
+  },
+  
+  "slate_courage": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": 1, "dc": 1, "mark": "plus" }
+    ],
+    "area": [
+      { "type": "diagonalUp", "mark": "plus" }
+    ]
+  },
+
+  "slate_daydream": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": -1, "mark": "plus" },
+      { "dr": -2, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 1, "mark": "plus" },
+      { "dr": -2, "dc": 1, "mark": "plus" },
+      { "dr": 1, "dc": -1, "mark": "plus" },
+      { "dr": 2, "dc": -1, "mark": "plus" },
+      { "dr": 1, "dc": 1, "mark": "plus" },
+      { "dr": 2, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_hospitality": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": true
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "ignore" },
+      { "dr": 0, "dc": -1, "mark": "ignore" }
+    ]
+  },
+
+  "slate_miracle": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "area": [
+      { "type": "sameRow", "mark": "plus" },
+      { "type": "sameColumn", "mark": "plus" }
+    ]
+  },
+
+  "slate_peace": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_sheen": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" }
+    ],
+    "area": [
+      { "type": "sameRow", "mark": "plus" }
+    ]
+  },
+
+  "slate_thorn": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" }
+    ],
+    "area": [
+      { "type": "around", "mark": "plus" }
+    ]
+  },
+
+  "slate_base": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "area": [
+      { "type": "sameRow", "mark": "plus" }
+    ]
+  },
+
+  "slate_concurrency": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "area": [
+      { "type": "sameColumn", "mark": "plus" }
+    ]
+  },
+
+  "slate_connection": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": true
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "ignore" }
+    ]
+  },
+
+  "slate_disconnection": {
+    "rotate": false,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "minus" },
+      { "dr": 0, "dc": 1, "mark": "minus" }
+    ]
+  },
+
+  "slate_rebellion": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "area": [
+      { "type": "diagonalUp", "mark": "plus" }
+    ]
+  },
+
+  "slate_shade": {
+    "rotate": false,
+    "position": "topRow",
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": "bottomRow",
+    "area": [
+      { "type": "bottomRow", "mark": "plus" }
+    ]
+  },
+
+  "slate_vow": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": -2, "dc": 0, "mark": "plus" },
+      { "dr": 1, "dc": 0, "mark": "plus" },
+      { "dr": 0, "dc": -1, "mark": "plus" },
+      { "dr": 0, "dc": 1, "mark": "plus" }
+    ]
+  },
+
+  "slate_warrant": {
+    "rotate": true,
+    "position": null,
+    "effect": {
+      "ignoreArtifactRestrictions": false
+    },
+    "pattern": [
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" },
+      { "dr": -1, "dc": 0, "mark": "plus" }
+    ]
+  }
+};
+
+    // 석판 합성 규칙:
+    // - 같은 칸에 여러 석판을 합성하면 components 배열에 각 석판 id와 합성 당시 rotation이 저장됩니다.
+    // - 작동 시 모든 components의 +, -, 위치 제한, 아티팩트 제약 무시 효과를 합산합니다.
+    // - 회전 가능한 석판은 Shift+클릭으로 90도씩 회전할 수 있고, 그 회전값이 합성 결과에 반영됩니다.
+
+    // 아티팩트 제약 데이터가 들어가는 자리입니다.
+    // 실제 제약을 알게 되면 artifact id별로 추가하면 됩니다.
+    // 예: 특정 아티팩트가 제일 윗줄에서만 강화 가능하면 position:'topRow'
+    // 예: 특정 아티팩트가 석판 강화를 받을 수 없으면 noSlateEnhance:true
+    const ARTIFACT_RULES = {
+      // artifact_example: { position:'inner', noSlateEnhance:false }
+    };
+
+    const BOARD_COLUMNS = 6;
+    const $ = s => document.querySelector(s);
+    const $$ = s => [...document.querySelectorAll(s)];
+    function hash(s) { let h=0; for (let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return Math.abs(h); }
+    function itemStats(item) { const h=hash(item.id); return { power:(h%9)+1, speed:(Math.floor(h/10)%8)+1, guard:(Math.floor(h/100)%7)+1, luck:(Math.floor(h/1000)%6)+1 }; }
+    function toast(msg) { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.classList.remove('show'),1400); }
+    function typeItems(type=currentType) { return ITEMS.filter(it => it.type===type); }
+    function filteredItems() {
+      const q=$('#searchInput').value.trim().toLowerCase();
+      const rarityOrder = { common:0, competitive:1, rare:2, legendary:3 };
+      return typeItems(currentType).filter(it => {
+        const text = `${it.name} ${it.id}`.toLowerCase();
+        const matchesText = !q || text.includes(q);
+        const matchesRarity = currentType !== 'slate' || currentRarity === 'all' || it.rarity === currentRarity;
+        return matchesText && matchesRarity;
+      }).sort((a,b)=>{
+        if(currentType === 'slate') {
+          const ar = rarityOrder[a.rarity] ?? 99;
+          const br = rarityOrder[b.rarity] ?? 99;
+          if(ar !== br) return ar - br;
+          return a.name.localeCompare(b.name, 'ko');
+        }
+        return a.name.localeCompare(b.name, 'ko');
+      });
+    }
+
+    function syncPriorityTargets() {
+      priorityTargets.clear();
+      priorityOrder.forEach(id => priorityTargets.add(id));
+    }
+    function priorityRank(id) {
+      const index = priorityOrder.indexOf(id);
+      return index >= 0 ? index + 1 : 0;
+    }
+    function setSelectMode(mode) {
+      selectMode = selectMode === mode ? 'normal' : mode;
+      const priorityBtn = $('#priorityModeBtn');
+      const banBtn = $('#banModeBtn');
+      if(priorityBtn) priorityBtn.classList.toggle('active', selectMode === 'priority');
+      if(banBtn) banBtn.classList.toggle('active', selectMode === 'ban');
+      if(selectMode === 'priority') toast('우선 순위 모드: 아티팩트를 누른 순서대로 번호를 지정합니다');
+      else if(selectMode === 'ban') toast('강화 X 모드: 강화받지 않을 아티팩트를 선택합니다');
+      else toast('선택 모드 해제');
+    }
+    function toggleNoEnhance(id) {
+      const item = ITEMS.find(x=>x.id===id);
+      if(!item || item.type !== 'artifact') return toast('아티팩트만 강화 X로 지정할 수 있습니다');
+      if(noEnhanceTargets.has(id)) {
+        noEnhanceTargets.delete(id);
+        toast(item.name+' 강화 X 해제');
+      } else {
+        noEnhanceTargets.add(id);
+        toast(item.name+' 강화 X 지정');
+      }
+      renderInventory();
+      update();
+    }
+    function handleArtifactPick(id) {
+      if(selectMode === 'priority') return togglePriority(id);
+      if(selectMode === 'ban') return toggleNoEnhance(id);
+      return autoPlace(id);
+    }
+
+    function togglePriority(id) {
+      const item = ITEMS.find(x=>x.id===id);
+      if(!item || item.type !== 'artifact') return toast('아티팩트만 우선순위로 지정할 수 있습니다');
+      const existing = priorityOrder.indexOf(id);
+      if(existing >= 0) {
+        priorityOrder.splice(existing, 1);
+        toast(item.name+' 우선순위 해제');
+      } else {
+        priorityOrder.push(id);
+        toast(item.name+' 우선순위 '+priorityOrder.length+'번 지정');
+      }
+      syncPriorityTargets();
+      renderInventory();
+      update();
+    }
+    function autoPlace(id) {
+      const index = board.findIndex(slot => slot === null);
+      if(index === -1) return toast('빈 인벤토리 칸이 없습니다');
+      place(index, id);
+    }
+    function renderInventory() {
+      const list=filteredItems();
+      $('#inventory').innerHTML=list.map(it=>{
+        const rarity = it.type === 'slate' ? ` data-rarity="${it.rarity || 'common'}"` : '';
+        const title = it.type === 'artifact'
+          ? `${it.name}
+클릭: 첫 빈칸 배치 / 우선 순위·강화 X 버튼으로 지정`
+          : `${it.name}
+클릭: 첫 빈칸 배치 / Shift+클릭: 합성 대기
+${rarityNames[it.rarity] || ''}`;
+        const lock = it.type === 'slate' && NO_ROTATE_SLATES.has(it.id) ? '<span class="rotate-lock">회전불가</span>' : '';
+        const noRotateClass = it.type === 'slate' && NO_ROTATE_SLATES.has(it.id) ? ' no-rotate' : '';
+        return `<div class="item-card${noRotateClass}" draggable="true" data-id="${it.id}"${rarity} title="${title}"><img class="thumb" src="${it.image}" alt="${it.name}"><span class="item-label">${it.name}</span>${lock}</div>`;
+      }).join('');
+      $$('.item-card').forEach(card=>{
+        card.addEventListener('dragstart',e=>e.dataTransfer.setData('text/plain',card.dataset.id));
+        card.addEventListener('click',event=>{
+          const item=ITEMS.find(x=>x.id===card.dataset.id);
+          if(!item) return;
+          if(item.type === 'artifact') {
+            if(event.shiftKey) return togglePriority(card.dataset.id);
+            return handleArtifactPick(card.dataset.id);
+          }
+          if(item.type === 'slate' && event.shiftKey) {
+            selectedMergeSlate = { id:item.id, rotation:0 };
+            mergeSourceIndex = null;
+            return toast(item.name+' 합성 대기: 왼쪽 석판 칸을 클릭하세요');
+          }
+          autoPlace(card.dataset.id);
+        });
+        card.addEventListener('contextmenu',event=>{
+          event.preventDefault();
+          const item=ITEMS.find(x=>x.id===card.dataset.id);
+          if(item && item.type === 'slate') {
+            selectedMergeSlate = { id:item.id, rotation:0 };
+            mergeSourceIndex = null;
+            return toast(item.name+' 합성 대기: 왼쪽 석판 칸을 클릭하세요');
+          }
+          if(selectMode === 'ban') return toggleNoEnhance(card.dataset.id);
+          togglePriority(card.dataset.id);
+        });
+      });
+    }
+    function renderBoard() {
+      $('#board').innerHTML=board.map((id,i)=>{
+        const it=ITEMS.find(x=>x.id===id);
+        const meta = getSlotMeta(i);
+        const components = it && it.type === 'slate' ? slotComponents(i) : [];
+        const mark=boardMarks[i] ? ` enhance-${boardMarks[i]}` : '';
+        const priority = it && priorityTargets.has(it.id) ? ' priority' : '';
+        const mergeSource = mergeSourceIndex === i ? ' merge-source' : '';
+        const rarity = it && it.type === 'slate' ? ` data-rarity="${it.rarity || 'common'}"` : '';
+        if(!it) return `<div class="slot empty${mark}${mergeSource}" data-i="${i}"></div>`;
+        const priorityBadge = it.type === 'artifact' && priorityRank(it.id) ? `<span class="priority-number-badge">${priorityRank(it.id)}</span>` : '';
+        const noEnhanceBadge = it.type === 'artifact' && noEnhanceTargets.has(it.id) ? '<span class="no-enhance-dot"></span>' : '';
+        const levelBadge = it.type === 'artifact' ? `<span class="level-badge">${artifactLevelText(it, enhancementCounts[i])}</span>` : '';
+        const mergeBadge = it.type === 'slate' && components.length > 1 ? `<span class="merge-badge">x${components.length}</span>` : '';
+        const rotationDeg = it.type === 'slate' ? (((components[0]?.rotation || 0) * 90) % 360) : 0;
+        const rotateBadge = it.type === 'slate' && rotationDeg !== 0 ? `<span class="rotate-badge">${rotationDeg}°</span>` : '';
+        const rotationStyle = it.type === 'slate' ? ` style="transform:rotate(${rotationDeg}deg)"` : '';
+        const title = it.type === 'slate'
+          ? `${it.name}\n드래그: 칸 이동·교체 / 클릭: 제거 / Shift+클릭: 회전 / Ctrl+클릭: 합성 원본 선택\n합성 수: ${components.length || 1}`
+          : '드래그: 칸 이동·교체 / 클릭하면 제거 / 우클릭·Shift+클릭: 우선순위';
+        return `<div class="slot${mark}${priority}${mergeSource}"${rarity} data-i="${i}" draggable="true"><div class="placed" title="${title}">${noEnhanceBadge}${priorityBadge}${levelBadge}${mergeBadge}${rotateBadge}<img src="${it.image}" alt="${it.name}"${rotationStyle}><span>${it.name}</span></div></div>`;
+      }).join('');
+      $$('.slot').forEach(slot=>{
+        slot.addEventListener('dragstart',e=>{
+          const i=+slot.dataset.i;
+          if(!board[i]) return e.preventDefault();
+          e.dataTransfer.setData('text/plain','board:'+i);
+          e.dataTransfer.effectAllowed='move';
+        });
+        slot.addEventListener('dragover',e=>{e.preventDefault(); slot.classList.add('over');});
+        slot.addEventListener('dragleave',()=>slot.classList.remove('over'));
+        slot.addEventListener('drop',e=>{
+          e.preventDefault();
+          slot.classList.remove('over');
+          const targetIndex=+slot.dataset.i;
+          const payload=e.dataTransfer.getData('text/plain');
+          if(payload && payload.startsWith('board:')) return moveSlot(+payload.slice(6), targetIndex);
+          place(targetIndex, payload);
+        });
+        slot.addEventListener('click',event=>{
+          const i=+slot.dataset.i;
+          const item = board[i] ? ITEMS.find(x=>x.id===board[i]) : null;
+          if(selectedMergeSlate) {
+            mergeSelectedSlateIntoSlot(i);
+            return;
+          }
+          if(mergeSourceIndex !== null) {
+            mergePlacedSlateIntoSlot(mergeSourceIndex, i);
+            return;
+          }
+          if(event.shiftKey && item && item.type === 'slate') return rotateSlateSlot(i);
+          if(item && item.type === 'artifact' && selectMode === 'priority') return togglePriority(item.id);
+          if(item && item.type === 'artifact' && selectMode === 'ban') return toggleNoEnhance(item.id);
+          if(event.shiftKey && board[i]) return togglePriority(board[i]);
+          if(event.ctrlKey && item && item.type === 'slate') return selectMergeSource(i);
+          if(board[i]) {
+            const old=ITEMS.find(x=>x.id===board[i]);
+            board[i]=null;
+            boardMarks[i]=null;
+            enhancementCounts[i]=0;
+            slotMeta[i]=emptySlotMeta();
+            if(mergeSourceIndex === i) mergeSourceIndex = null;
+            toast(old.name+' 제거');
+            update();
+          }
+        });
+        slot.addEventListener('contextmenu',event=>{
+          event.preventDefault();
+          const i=+slot.dataset.i;
+          const item = board[i] ? ITEMS.find(x=>x.id===board[i]) : null;
+          if(item && item.type === 'slate') return selectMergeSource(i);
+          if(item && item.type === 'artifact' && selectMode === 'ban') return toggleNoEnhance(item.id);
+          if(board[i]) togglePriority(board[i]);
+        });
+      });
+    }
+    function moveSlot(fromIndex, targetIndex) {
+      if(fromIndex === targetIndex) return;
+      if(fromIndex < 0 || targetIndex < 0 || fromIndex >= board.length || targetIndex >= board.length) return;
+      if(!board[fromIndex]) return;
+      const fromItem = ITEMS.find(x=>x.id===board[fromIndex]);
+      const targetItem = ITEMS.find(x=>x.id===board[targetIndex]);
+      [board[fromIndex], board[targetIndex]] = [board[targetIndex], board[fromIndex]];
+      [slotMeta[fromIndex], slotMeta[targetIndex]] = [slotMeta[targetIndex] || emptySlotMeta(), slotMeta[fromIndex] || emptySlotMeta()];
+      clearEnhancementMarks();
+      if(mergeSourceIndex === fromIndex) mergeSourceIndex = targetIndex;
+      else if(mergeSourceIndex === targetIndex) mergeSourceIndex = fromIndex;
+      toast(targetItem ? `${fromItem.name} ↔ ${targetItem.name} 위치 교체` : `${fromItem.name} 이동`);
+      update();
+    }
+    
+function place(i,id) {
+      const item=ITEMS.find(x=>x.id===id);
+      if(!item) return;
+      const targetItem = board[i] ? ITEMS.find(x=>x.id===board[i]) : null;
+      if(item.type === 'slate' && targetItem && targetItem.type === 'slate') {
+        return mergeComponentIntoSlot(i, { id:item.id, rotation:0 }, true);
+      }
+      board[i]=id;
+      boardMarks[i]=null;
+      enhancementCounts[i]=0;
+      slotMeta[i] = item.type === 'slate' ? { rotation:0, components:[{ id:item.id, rotation:0 }] } : emptySlotMeta();
+      if(mergeSourceIndex === i) mergeSourceIndex = null;
+      const it=ITEMS.find(x=>x.id===id);
+      toast((i+1)+'번 슬롯에 '+it.name+' 배치');
+      update();
+    }
+    function totals() { const t={power:0,speed:0,guard:0,luck:0}, c={slate:0,artifact:0}; board.forEach(id=>{ const it=ITEMS.find(x=>x.id===id); if(!it) return; c[it.type]++; const s=itemStats(it); Object.keys(t).forEach(k=>t[k]+=s[k]); }); if(c.slate>=3) t.guard+=10; if(c.artifact>=3) t.power+=10; if(c.slate>=2 && c.artifact>=2) t.luck+=7; return {t,c}; }
+    function updateSlotCount() { const countEl=$('#slotCount'); if(countEl) countEl.textContent=board.length; }
+    function changeSlotCount(delta) {
+      if(delta > 0) {
+        if(board.length >= 80) return toast('최대 80칸까지 설정할 수 있습니다');
+        board.push(null);
+        boardMarks.push(null);
+        enhancementCounts.push(0);
+        slotMeta.push(emptySlotMeta());
+      } else {
+        if(board.length <= 1) return toast('최소 1칸은 유지됩니다');
+        const removed=board[board.length-1];
+        board.pop();
+        boardMarks.pop();
+        enhancementCounts.pop();
+        slotMeta.pop();
+        if(mergeSourceIndex !== null && mergeSourceIndex >= board.length) mergeSourceIndex = null;
+        if(removed) toast('마지막 칸의 아이템도 함께 제거되었습니다');
+      }
+      update();
+    }
+
+    function isSlateId(id) {
+      const item = ITEMS.find(x=>x.id===id);
+      return !!item && item.type === 'slate';
+    }
+    function getSlotMeta(index) {
+      if(!slotMeta[index]) slotMeta[index] = emptySlotMeta();
+      return slotMeta[index];
+    }
+    function slotComponents(index) {
+      const id = board[index];
+      if(!isSlateId(id)) return [];
+      const meta = getSlotMeta(index);
+      if(!Array.isArray(meta.components) || meta.components.length === 0) {
+        meta.components = [{ id, rotation: meta.rotation || 0 }];
+      }
+      return meta.components;
+    }
+    function canRotateSlate(id) {
+      if(NO_ROTATE_SLATES.has(id)) return false;
+      const rule = SLATE_RULES[id];
+      if(rule && rule.rotate === false) return false;
+      return true;
+    }
+    function rotateSlateSlot(index) {
+      if(!isSlateId(board[index])) return toast('석판만 회전할 수 있습니다');
+      const components = slotComponents(index);
+      const blocked = components.find(c => !canRotateSlate(c.id));
+      if(blocked) {
+        const item=ITEMS.find(x=>x.id===blocked.id);
+        return toast((item ? item.name : '석판')+'은 회전 불가입니다');
+      }
+      components.forEach(c => c.rotation = ((c.rotation || 0) + 1) % 4);
+      boardMarks[index]=null;
+      enhancementCounts[index]=0;
+      toast('석판 회전: '+(((components[0].rotation || 0) * 90) % 360)+'°');
+      update();
+    }
+    function selectMergeSource(index) {
+      if(!isSlateId(board[index])) return toast('석판 칸만 합성 원본으로 선택할 수 있습니다');
+      mergeSourceIndex = mergeSourceIndex === index ? null : index;
+      selectedMergeSlate = null;
+      toast(mergeSourceIndex === null ? '합성 원본 선택 해제' : '합성 원본 선택: 다른 석판 칸을 클릭하세요');
+      update();
+    }
+    function mergeComponentIntoSlot(targetIndex, component, keepSelected=false) {
+      if(!isSlateId(component.id)) return;
+      if(!isSlateId(board[targetIndex])) {
+        if(board[targetIndex] === null) {
+          place(targetIndex, component.id);
+          selectedMergeSlate = null;
+        } else toast('석판은 석판 칸에만 합성할 수 있습니다');
+        return;
+      }
+      const meta = getSlotMeta(targetIndex);
+      const components = slotComponents(targetIndex);
+      components.push({ id:component.id, rotation:component.rotation || 0 });
+      meta.components = components;
+      boardMarks[targetIndex]=null;
+      enhancementCounts[targetIndex]=0;
+      if(!keepSelected) selectedMergeSlate = null;
+      const item=ITEMS.find(x=>x.id===component.id);
+      toast((item ? item.name : '석판')+' 합성 완료');
+      update();
+    }
+    function mergeSelectedSlateIntoSlot(targetIndex) {
+      if(!selectedMergeSlate) return;
+      mergeComponentIntoSlot(targetIndex, selectedMergeSlate, false);
+    }
+    function mergePlacedSlateIntoSlot(sourceIndex, targetIndex) {
+      if(sourceIndex === targetIndex) {
+        mergeSourceIndex = null;
+        update();
+        return toast('합성 원본 선택 해제');
+      }
+      if(!isSlateId(board[sourceIndex]) || !isSlateId(board[targetIndex])) return toast('석판끼리만 합성할 수 있습니다');
+      const sourceComponents = slotComponents(sourceIndex).map(c => ({ id:c.id, rotation:c.rotation || 0 }));
+      const targetComponents = slotComponents(targetIndex);
+      slotMeta[targetIndex].components = targetComponents.concat(sourceComponents);
+      const sourceName = ITEMS.find(x=>x.id===board[sourceIndex])?.name || '석판';
+      board[sourceIndex]=null;
+      boardMarks[sourceIndex]=null;
+      enhancementCounts[sourceIndex]=0;
+      slotMeta[sourceIndex]=emptySlotMeta();
+      mergeSourceIndex = null;
+      boardMarks[targetIndex]=null;
+      enhancementCounts[targetIndex]=0;
+      toast(sourceName+' 합성 완료');
+      update();
+    }
+    function rotateOffset(offset, rotation) {
+      let dr = offset.dr || 0;
+      let dc = offset.dc || 0;
+      for(let i=0; i<(rotation || 0); i++) {
+        const nextDr = dc;
+        const nextDc = -dr;
+        dr = nextDr;
+        dc = nextDc;
+      }
+      return { ...offset, dr, dc };
+    }
+    function expandPatternWithRotation(pattern, rotation) {
+      if(Array.isArray(pattern)) return pattern.map(offset => rotateOffset(offset, rotation));
+      if(typeof pattern === 'string') return [{ special:pattern, mark:'plus' }];
+      return [];
+    }
+    function rotateAreaType(type, rotation) {
+      const turn = (((rotation || 0) % 360) + 360) % 360;
+      if(turn === 0) return type;
+      const step = turn / 90;
+      const cycle = (...values) => values[step % values.length];
+
+      if(type === 'sameRow') return step % 2 ? 'sameColumn' : 'sameRow';
+      if(type === 'sameColumn') return step % 2 ? 'sameRow' : 'sameColumn';
+
+      if(type === 'aboveColumn') return cycle('aboveColumn','rightRow','belowColumn','leftRow');
+      if(type === 'rightRow') return cycle('rightRow','belowColumn','leftRow','aboveColumn');
+      if(type === 'belowColumn') return cycle('belowColumn','leftRow','aboveColumn','rightRow');
+      if(type === 'leftRow') return cycle('leftRow','aboveColumn','rightRow','belowColumn');
+
+      if(type === 'aboveAll') return cycle('aboveAll','rightAll','belowAll','leftAll');
+      if(type === 'rightAll') return cycle('rightAll','belowAll','leftAll','aboveAll');
+      if(type === 'belowAll') return cycle('belowAll','leftAll','aboveAll','rightAll');
+      if(type === 'leftAll') return cycle('leftAll','aboveAll','rightAll','belowAll');
+
+      if(type === 'diagonalUp') return step % 2 ? 'diagonalDown' : 'diagonalUp';
+      if(type === 'diagonalDown') return step % 2 ? 'diagonalUp' : 'diagonalDown';
+      if(type === 'diagonalBoth') return 'diagonalBoth';
+
+      return type;
+    }
+    function expandAreaWithRotation(area, rotation) {
+      if(!area) return [];
+      const list = Array.isArray(area) ? area : [area];
+      return list.map(rule => {
+        if(typeof rule === 'string') return { type:rotateAreaType(rule, rotation), mark:'plus' };
+        return { ...rule, type:rotateAreaType(rule.type, rotation) };
+      });
+    }
+    function mergeConstraints(a, b) {
+      const out=[];
+      const push=v=>{
+        if(!v) return;
+        if(Array.isArray(v)) v.forEach(push);
+        else out.push(v);
+      };
+      push(a); push(b);
+      return out.length ? out : null;
+    }
+    function combinedSlateRule(index) {
+      const components = slotComponents(index);
+      const combined = { rotate:false, position:null, effect:{ ignoreArtifactRestrictions:false }, pattern:[], area:[] };
+      let missing = 0;
+      components.forEach(component=>{
+        const rule = SLATE_RULES[component.id];
+        if(!rule || ((!rule.pattern || rule.pattern.length === 0) && (!rule.area || rule.area.length === 0))) { missing++; return; }
+        combined.position = mergeConstraints(combined.position, rule.position);
+        combined.effect.ignoreArtifactRestrictions = combined.effect.ignoreArtifactRestrictions || !!(rule.effect && rule.effect.ignoreArtifactRestrictions);
+        combined.pattern.push(...expandPatternWithRotation(rule.pattern || [], component.rotation || 0));
+        combined.area.push(...expandAreaWithRotation(rule.area || [], component.rotation || 0));
+      });
+      return { rule:combined, missing, components };
+    }
+    function clearEnhancementMarks() {
+      boardMarks = Array(board.length).fill(null);
+      enhancementCounts = Array(board.length).fill(0);
+    }
+    function rowCount() {
+      return Math.ceil(board.length / BOARD_COLUMNS);
+    }
+    function slotPosition(index) {
+      return {
+        row: Math.floor(index / BOARD_COLUMNS),
+        col: index % BOARD_COLUMNS,
+        rows: rowCount(),
+        cols: BOARD_COLUMNS
+      };
+    }
+    function checkPositionConstraint(index, constraint) {
+      if(!constraint) return true;
+      const { row, col, rows, cols } = slotPosition(index);
+      const isTop = row === 0;
+      const isBottom = row === rows - 1;
+      const isLeft = col === 0;
+      const isRight = col === cols - 1;
+      const isEdge = isTop || isBottom || isLeft || isRight;
+      const rules = Array.isArray(constraint) ? constraint : [constraint];
+      return rules.every(rule => {
+        if(rule === 'topRow') return isTop;
+        if(rule === 'bottomRow') return isBottom;
+        if(rule === 'inner') return !isEdge;
+        if(rule === 'edge') return isEdge;
+        if(rule === 'leftEdge') return isLeft;
+        if(rule === 'rightEdge') return isRight;
+        if(rule === 'notTopRow') return !isTop;
+        if(rule === 'notBottomRow') return !isBottom;
+        if(rule === 'notLeftEdge') return !isLeft;
+        if(rule === 'notRightEdge') return !isRight;
+        return true;
+      });
+    }
+    function targetIndexFromOffset(originIndex, dr, dc) {
+      const row=Math.floor(originIndex / BOARD_COLUMNS);
+      const col=originIndex % BOARD_COLUMNS;
+      const targetRow=row + dr;
+      const targetCol=col + dc;
+      if(targetRow < 0 || targetCol < 0 || targetCol >= BOARD_COLUMNS) return -1;
+      const idx=targetRow * BOARD_COLUMNS + targetCol;
+      return idx >= 0 && idx < board.length ? idx : -1;
+    }
+    function indicesForPattern(originIndex, pattern) {
+      if(Array.isArray(pattern)) {
+        return pattern.flatMap(offset => {
+          if(offset && offset.special) {
+            return indicesForPattern(originIndex, offset.special).map(target => ({ ...target, mark:offset.mark || target.mark || 'plus' }));
+          }
+          return [{
+            index: targetIndexFromOffset(originIndex, offset.dr || 0, offset.dc || 0),
+            mark: offset.mark || 'plus'
+          }];
+        }).filter(target => target.index >= 0);
+      }
+
+      const { row, col, rows, cols } = slotPosition(originIndex);
+      if(pattern === 'bottomRow') {
+        const start = (rows - 1) * cols;
+        return Array.from({ length: cols }, (_, i) => ({ index: start + i, mark:'plus' }))
+          .filter(target => target.index >= 0 && target.index < board.length && target.index !== originIndex);
+      }
+      if(pattern === 'topRow') {
+        return Array.from({ length: cols }, (_, i) => ({ index: i, mark:'plus' }))
+          .filter(target => target.index >= 0 && target.index < board.length && target.index !== originIndex);
+      }
+      if(pattern === 'sameRow') {
+        const start = row * cols;
+        return Array.from({ length: cols }, (_, i) => ({ index: start + i, mark:'plus' }))
+          .filter(target => target.index >= 0 && target.index < board.length && target.index !== originIndex);
+      }
+      if(pattern === 'sameColumn') {
+        return Array.from({ length: rows }, (_, r) => ({ index: r * cols + col, mark:'plus' }))
+          .filter(target => target.index >= 0 && target.index < board.length && target.index !== originIndex);
+      }
+      return [];
+    }
+    function collectAreaTargets(originIndex, area) {
+      if(!area) return [];
+      const list = Array.isArray(area) ? area : [area];
+      const { row, col, rows, cols } = slotPosition(originIndex);
+      const targets = [];
+      const add = (index, mark) => {
+        if(index < 0 || index >= board.length || index === originIndex) return;
+        targets.push({ index, mark:mark || 'plus' });
+      };
+      const addRow = (r, mark) => {
+        for(let c = 0; c < cols; c++) add(r * cols + c, mark);
+      };
+      const addCol = (c, mark) => {
+        for(let r = 0; r < rows; r++) add(r * cols + c, mark);
+      };
+
+      list.forEach(areaRule => {
+        const rule = typeof areaRule === 'string' ? { type:areaRule, mark:'plus' } : areaRule;
+        const type = rule.type;
+        const mark = rule.mark || 'plus';
+
+        if(type === 'sameRow') addRow(row, mark);
+        else if(type === 'sameColumn') addCol(col, mark);
+        else if(type === 'topRow') addRow(0, mark);
+        else if(type === 'bottomRow') addRow(rows - 1, mark);
+        else if(type === 'aboveColumn') { for(let r = 0; r < row; r++) add(r * cols + col, mark); }
+        else if(type === 'belowColumn') { for(let r = row + 1; r < rows; r++) add(r * cols + col, mark); }
+        else if(type === 'leftRow') { for(let c = 0; c < col; c++) add(row * cols + c, mark); }
+        else if(type === 'rightRow') { for(let c = col + 1; c < cols; c++) add(row * cols + c, mark); }
+        else if(type === 'aboveAll') { for(let r = 0; r < row; r++) addRow(r, mark); }
+        else if(type === 'belowAll') { for(let r = row + 1; r < rows; r++) addRow(r, mark); }
+        else if(type === 'leftAll') {
+          for(let r = 0; r < rows; r++) for(let c = 0; c < col; c++) add(r * cols + c, mark);
+        }
+        else if(type === 'rightAll') {
+          for(let r = 0; r < rows; r++) for(let c = col + 1; c < cols; c++) add(r * cols + c, mark);
+        }
+        else if(type === 'edge') {
+          for(let r = 0; r < rows; r++) {
+            for(let c = 0; c < cols; c++) {
+              if(r === 0 || r === rows - 1 || c === 0 || c === cols - 1) add(r * cols + c, mark);
+            }
+          }
+        }
+        else if(type === 'inner') {
+          for(let r = 1; r < rows - 1; r++) for(let c = 1; c < cols - 1; c++) add(r * cols + c, mark);
+        }
+        else if(type === 'diagonalDown') {
+          for(let r = 0; r < rows; r++) {
+            const c = col + (r - row);
+            add(r * cols + c, mark);
+          }
+        }
+        else if(type === 'diagonalUp') {
+          for(let r = 0; r < rows; r++) {
+            const c = col - (r - row);
+            add(r * cols + c, mark);
+          }
+        }
+        else if(type === 'diagonalBoth') {
+          collectAreaTargets(originIndex, [
+            { type:'diagonalDown', mark },
+            { type:'diagonalUp', mark }
+          ]).forEach(target => add(target.index, target.mark));
+        }
+        else if(type === 'around') {
+          for(let dr = -1; dr <= 1; dr++) {
+            for(let dc = -1; dc <= 1; dc++) {
+              if(dr === 0 && dc === 0) continue;
+              add(targetIndexFromOffset(originIndex, dr, dc), mark);
+            }
+          }
+        }
+        else if(type === 'all') {
+          for(let i = 0; i < board.length; i++) add(i, mark);
+        }
+      });
+
+      return targets;
+    }
+    function artifactCanReceiveEnhancement(itemId, targetIndex, slateRule) {
+      const item = ITEMS.find(x => x.id === itemId);
+      if(!item || item.type !== 'artifact') return { ok:true, reason:'' };
+      if(noEnhanceTargets.has(item.id)) return { ok:false, reason:'no-enhance' };
+      const artifactRule = ARTIFACT_RULES[item.id];
+      if(!artifactRule) return { ok:true, reason:'' };
+      if(slateRule && slateRule.effect && slateRule.effect.ignoreArtifactRestrictions) return { ok:true, reason:'ignored' };
+      if(artifactRule.noSlateEnhance) return { ok:false, reason:'artifact-block' };
+      if(artifactRule.position && !checkPositionConstraint(targetIndex, artifactRule.position)) return { ok:false, reason:'artifact-position' };
+      return { ok:true, reason:'' };
+    }
+
+    function addEnhancementMark(index, mark) {
+      if(index < 0 || index >= board.length) return;
+      if(mark === 'plus') enhancementCounts[index] = Math.max(0, enhancementCounts[index] + 1);
+      if(mark === 'minus') enhancementCounts[index] = Math.max(0, enhancementCounts[index] - 1);
+      if(boardMarks[index] === 'blocked' || boardMarks[index] === 'invalid') return;
+      if(mark === 'plus' || mark === 'minus' || mark === 'ignore') boardMarks[index] = mark;
+    }
+    function applyPriorityMaxMarks() {
+      board.forEach((id,index)=>{
+        const item=ITEMS.find(x=>x.id===id);
+        if(!item || item.type !== 'artifact') return;
+        if(!priorityTargets.has(id)) return;
+        if(enhancementCounts[index] >= artifactMaxLevel(item)) boardMarks[index]='max';
+        else if(enhancementCounts[index] > 0 && !boardMarks[index]) boardMarks[index]='plus';
+      });
+    }
+    function markPrioritySuggestions() {
+      // 인벤토리 칸의 "추천" 표시를 제거하기 위해 시각 표시를 만들지 않습니다.
+      // 자동 배치는 getEnhancementPotential()을 따로 사용하므로 추천 표시가 없어도 작동합니다.
+      return 0;
+    }
+    function calculateSlateEnhancements(showToast=false) {
+      clearEnhancementMarks();
+      let applied=0;
+      let missing=0;
+      let invalid=0;
+      let blocked=0;
+      board.forEach((id,index)=>{
+        const it=ITEMS.find(x=>x.id===id);
+        if(!it || it.type !== 'slate') return;
+        const combined = combinedSlateRule(index);
+        const rule = combined.rule;
+        const hasRuleTargets = (rule.pattern && rule.pattern.length > 0) || (rule.area && rule.area.length > 0);
+        if(combined.missing || !hasRuleTargets) { missing += combined.missing || 1; return; }
+
+        if(rule.position && !checkPositionConstraint(index, rule.position)) {
+          boardMarks[index]='invalid';
+          invalid++;
+          return;
+        }
+
+        boardMarks[index]='core';
+        const targets = [
+          ...indicesForPattern(index, rule.pattern || []),
+          ...collectAreaTargets(index, rule.area || [])
+        ];
+        targets.forEach(target=>{
+          const targetItemId = board[target.index];
+          const receive = artifactCanReceiveEnhancement(targetItemId, target.index, rule);
+          if(!receive.ok) {
+            boardMarks[target.index]='blocked';
+            blocked++;
+            return;
+          }
+          addEnhancementMark(target.index, target.mark || 'plus');
+          applied++;
+        });
+      });
+      applyPriorityMaxMarks();
+      const suggestions = markPrioritySuggestions();
+      if(showToast) {
+        if(applied || invalid || blocked || suggestions) {
+          const parts=[];
+          if(applied) parts.push('강화 '+applied+'칸');
+          if(invalid) parts.push('위치 제약 불발 '+invalid+'개');
+          if(blocked) parts.push('아티팩트 제약/강화 X 차단 '+blocked+'칸');
+          const mergedCount = slotMeta.filter((meta,i)=>isSlateId(board[i]) && slotComponents(i).length > 1).length;
+          if(mergedCount) parts.push('합성 석판 '+mergedCount+'개');
+          const maxed = board.filter((id,i)=>{
+            if(!id || !priorityTargets.has(id)) return false;
+            return enhancementCounts[i] >= artifactMaxLevel(id);
+          }).length;
+          if(priorityTargets.size) parts.push('우선순위 MAX '+maxed+'개');
+          toast(parts.join(' / '));
+        } else if(missing) toast('석판별 강화 모양 데이터가 필요합니다');
+        else toast('배치된 석판이 없습니다');
+      }
+      return { applied, missing, invalid, blocked, suggestions };
+    }
+    function applySlateEnhancements() {
+      calculateSlateEnhancements(true);
+      renderBoard();
+      renderInventory();
+      updateSlotCount();
+    }
+
+    function getEnhancementPotential() {
+      const potential = Array(board.length).fill(0);
+      board.forEach((id,index)=>{
+        const it=ITEMS.find(x=>x.id===id);
+        if(!it || it.type !== 'slate') return;
+        const combined = combinedSlateRule(index);
+        const rule = combined.rule;
+        const hasRuleTargets = (rule.pattern && rule.pattern.length > 0) || (rule.area && rule.area.length > 0);
+        if(!hasRuleTargets) return;
+        if(rule.position && !checkPositionConstraint(index, rule.position)) return;
+        const targets = [
+          ...indicesForPattern(index, rule.pattern || []),
+          ...collectAreaTargets(index, rule.area || [])
+        ];
+        targets.forEach(target=>{
+          if(target.index < 0 || target.index >= potential.length) return;
+          if(target.mark === 'plus' || target.mark === 'ignore') potential[target.index] += 1;
+          else if(target.mark === 'minus') potential[target.index] -= 1;
+        });
+      });
+      return potential;
+    }
+    function artifactAutoScore(artifactId, slotIndex, potential) {
+      const value = potential[slotIndex] || 0;
+      const maxLevel = artifactMaxLevel(artifactId);
+      const useful = Math.max(0, Math.min(maxLevel, value));
+      const rank = priorityRank(artifactId);
+      if(noEnhanceTargets.has(artifactId)) {
+        return (value <= 0 ? 500 : -10000 * value) - slotIndex / 1000;
+      }
+      let score = useful * 100;
+      if(rank) score += useful * (12000 - rank * 900) + (maxLevel - useful) * -80;
+      else score += useful * 160;
+      if(value < 0) score += value * 300;
+      return score - slotIndex / 1000;
+    }
+    function autoArrangeBoard() {
+      const artifactEntries = [];
+      const slateSlots = new Set();
+      board.forEach((id,index)=>{
+        const item=ITEMS.find(x=>x.id===id);
+        if(!item) return;
+        if(item.type === 'slate') slateSlots.add(index);
+        else if(item.type === 'artifact') artifactEntries.push({ id, from:index });
+      });
+      if(!artifactEntries.length) return toast('자동 배치할 아티팩트가 없습니다');
+      const candidateSlots = board.map((id,index)=>index).filter(index=>!slateSlots.has(index));
+      const potential = getEnhancementPotential();
+      const sortedArtifacts = artifactEntries.sort((a,b)=>{
+        const ar = priorityRank(a.id) || 9999;
+        const br = priorityRank(b.id) || 9999;
+        if(ar !== br) return ar - br;
+        const ax = noEnhanceTargets.has(a.id) ? 1 : 0;
+        const bx = noEnhanceTargets.has(b.id) ? 1 : 0;
+        if(ax !== bx) return ax - bx;
+        return (ITEMS.find(x=>x.id===a.id)?.name || '').localeCompare(ITEMS.find(x=>x.id===b.id)?.name || '', 'ko');
+      });
+
+      candidateSlots.forEach(index=>{
+        if(!slateSlots.has(index)) {
+          board[index] = null;
+          slotMeta[index] = emptySlotMeta();
+        }
+      });
+
+      const available = [...candidateSlots];
+      sortedArtifacts.forEach(entry=>{
+        if(!available.length) return;
+        let bestPos = 0;
+        let bestScore = -Infinity;
+        available.forEach((slotIndex, pos)=>{
+          const score = artifactAutoScore(entry.id, slotIndex, potential);
+          if(score > bestScore) {
+            bestScore = score;
+            bestPos = pos;
+          }
+        });
+        const chosen = available.splice(bestPos, 1)[0];
+        board[chosen] = entry.id;
+        slotMeta[chosen] = emptySlotMeta();
+      });
+
+      mergeSourceIndex = null;
+      selectedMergeSlate = null;
+      update();
+      renderInventory();
+      toast('우선 순위와 강화 X를 반영해 자동 배치했습니다');
+    }
+    function update() { calculateSlateEnhancements(false); renderBoard(); renderInventory(); updateSlotCount(); }
+    function syncRarityFilterState() {
+      const select=$('#rarityFilter');
+      if(!select) return;
+      select.disabled = currentType !== 'slate';
+      select.style.opacity = currentType === 'slate' ? '1' : '.45';
+    }
+    $('#searchInput').addEventListener('input',renderInventory);
+    $('#rarityFilter').addEventListener('change',event=>{ currentRarity=event.target.value; renderInventory(); toast((rarityNames[currentRarity] || '등급')+' 필터 적용'); });
+    $$('.type-btn').forEach(btn=>btn.addEventListener('click',()=>{
+      currentType=btn.dataset.type;
+      const group=btn.closest('.type-buttons');
+      if(group) group.dataset.active=currentType;
+      $$('.type-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      selected=null;
+      syncRarityFilterState();
+      renderInventory();
+      toast(typeNames[currentType]+' 목록으로 변경되었습니다');
+    }));
+    $('#themeBtn').addEventListener('click',()=>document.body.classList.toggle('light'));
+    $('#helpBtn').addEventListener('click',()=>toast('PC는 드래그, 모바일은 아이템 클릭 후 슬롯 클릭'));
+    $('#clearBtn').addEventListener('click',()=>{ board.fill(null); boardMarks.fill(null); enhancementCounts.fill(0); slotMeta=Array.from({ length: board.length }, () => emptySlotMeta()); mergeSourceIndex=null; selectedMergeSlate=null; selected=null; priorityOrder.length=0; syncPriorityTargets(); noEnhanceTargets.clear(); selectMode='normal'; const pb=$('#priorityModeBtn'); const bb=$('#banModeBtn'); if(pb) pb.classList.remove('active'); if(bb) bb.classList.remove('active'); renderInventory(); update(); toast('초기화 완료'); });
+    $('#slotMinus').addEventListener('click',()=>changeSlotCount(-1));
+    $('#slotPlus').addEventListener('click',()=>changeSlotCount(1));
+    $('#priorityModeBtn').addEventListener('click',()=>setSelectMode('priority'));
+    $('#banModeBtn').addEventListener('click',()=>setSelectMode('ban'));
+    $('#autoApplyBtn').addEventListener('click',autoArrangeBoard);
+    $('#operateBtn').addEventListener('click',autoArrangeBoard);
+    $('#shotBtn').addEventListener('click',()=>$('#shotInput').click());
+    $('#shotInput').addEventListener('change',event=>{
+      const file=event.target.files && event.target.files[0];
+      if(!file) return;
+      if(!file.type.startsWith('image/')) return toast('이미지 파일만 업로드할 수 있습니다');
+      const reader=new FileReader();
+      reader.addEventListener('load',()=>{
+        const boardEl=$('#board');
+        boardEl.style.setProperty('--board-shot', `url("${reader.result}")`);
+        boardEl.classList.add('has-shot');
+        toast('스크린샷을 인벤토리 보드에 적용했습니다');
+      });
+      reader.readAsDataURL(file);
+    });
+    syncRarityFilterState(); renderInventory(); update();
+  </script>
+</body>
+</html>

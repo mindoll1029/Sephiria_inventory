@@ -1,0 +1,24 @@
+석판 합성 기능 구현 메모
+
+1. 우측 석판 목록에서 석판을 Shift+클릭 또는 우클릭하면 합성 대기 상태가 됩니다.
+2. 합성 대기 상태에서 왼쪽 인벤토리의 기존 석판 칸을 클릭하면 해당 칸에 합성됩니다.
+3. 왼쪽 인벤토리의 석판 칸을 Ctrl+클릭 또는 우클릭하면 합성 원본으로 선택됩니다.
+4. 합성 원본을 선택한 뒤 다른 석판 칸을 클릭하면 원본 석판의 모든 구성 요소가 대상 석판에 합쳐지고 원본 칸은 비워집니다.
+5. Shift+클릭 회전은 SLATE_RULES에서 rotate:true인 석판만 가능합니다. 회전 불가 석판이 포함된 합성 석판은 회전되지 않습니다.
+6. 합성 석판은 components 배열에 각 석판 id와 합성 당시 rotation을 저장합니다.
+7. 작동 버튼을 누르면 components 안의 모든 석판 패턴(+/-), 위치 제한(position), 아티팩트 제한 무시 효과(effect.ignoreArtifactRestrictions)를 합산하여 적용합니다.
+
+예시:
+slotMeta[3] = {
+  rotation: 0,
+  components: [
+    { id: 'slate_dedication', rotation: 0 },
+    { id: 'slate_example', rotation: 1 }
+  ]
+};
+
+rotation 값:
+0 = 0도
+1 = 90도 시계 방향
+2 = 180도
+3 = 270도 시계 방향

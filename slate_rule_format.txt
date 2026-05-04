@@ -1,0 +1,70 @@
+세피리아 석판 강화 규칙 입력 형식
+
+index.html 안의 SLATE_RULES와 ARTIFACT_RULES에 데이터를 추가하면 됩니다.
+
+1) 석판 규칙 예시
+
+const SLATE_RULES = {
+  slate_example: {
+    rotate: false,
+    position: 'inner',
+    effect: { ignoreArtifactRestrictions: true },
+    pattern: [
+      { dr: 0, dc: 1, mark: 'plus' },
+      { dr: 1, dc: 0, mark: 'minus' }
+    ]
+  }
+};
+
+2) position 값
+
+topRow       = 제일 윗줄에서만 발동
+bottomRow    = 제일 아랫줄에서만 발동
+inner        = 가장자리 제외, 안쪽에서만 발동
+edge         = 가장자리에서만 발동
+leftEdge     = 제일 왼쪽 줄에서만 발동
+rightEdge    = 제일 오른쪽 줄에서만 발동
+notTopRow    = 제일 윗줄이 아닐 때만 발동
+notBottomRow = 제일 아랫줄이 아닐 때만 발동
+notLeftEdge  = 제일 왼쪽 줄이 아닐 때만 발동
+notRightEdge = 제일 오른쪽 줄이 아닐 때만 발동
+
+3) pattern 좌표
+
+dr -1 = 위
+dr  0 = 같은 줄
+dr +1 = 아래
+
+dc -1 = 왼쪽
+dc  0 = 같은 칸
+dc +1 = 오른쪽
+
+mark plus  = 강화
+mark minus = 감소/약화
+
+4) 특수 pattern 문자열
+
+bottomRow  = 가장 아래 줄 전체
+topRow     = 가장 위 줄 전체
+sameRow    = 석판과 같은 줄 전체
+sameColumn = 석판과 같은 세로줄 전체
+
+5) 아티팩트 제약 예시
+
+const ARTIFACT_RULES = {
+  artifact_example: { position: 'topRow', noSlateEnhance: false },
+  artifact_blocked: { noSlateEnhance: true }
+};
+
+6) 제약 무시 석판
+
+석판 규칙에 아래 값을 넣으면 해당 석판은 대상 아티팩트의 제약을 무시합니다.
+
+effect: { ignoreArtifactRestrictions: true }
+
+7) 현재 샘플로 들어간 규칙
+
+slate_dedication: 기준칸의 1시, 5시, 7시, 11시 방향 강화
+slate_shade: 제일 윗줄에서만 발동, 제일 아랫줄 전체 강화
+
+실제 게임 데이터와 다를 경우 SLATE_RULES에서 좌표와 제약만 수정하면 됩니다.

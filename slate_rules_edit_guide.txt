@@ -1,0 +1,80 @@
+석판 모양 데이터 수정 위치
+
+1) 수정 파일
+- index.html
+
+2) 찾을 문자열
+- const SLATE_RULES = {
+
+3) 수정 위치
+- index.html 안의 <script> 영역에 있는 const SLATE_RULES 객체 내부입니다.
+- 현재 예시로 slate_dedication, slate_shade가 들어 있습니다.
+- 새 석판 데이터는 SLATE_RULES 안에 아래 형식으로 추가합니다.
+
+예시 1: 기준 석판의 위/오른쪽을 강화
+slate_example: {
+  rotate: true,
+  position: null,
+  effect: { ignoreArtifactRestrictions: false },
+  pattern: [
+    { dr:-1, dc: 0, mark:'plus' },
+    { dr: 0, dc: 1, mark:'plus' }
+  ]
+},
+
+예시 2: 회전 불가 + 제일 윗줄에서만 발동 + 맨 아래 줄 전체 강화
+slate_example_top: {
+  rotate: false,
+  position: 'topRow',
+  effect: { ignoreArtifactRestrictions: false },
+  pattern: 'bottomRow'
+},
+
+좌표 기준
+- dr:-1 = 위 1칸
+- dr: 0 = 같은 줄
+- dr: 1 = 아래 1칸
+- dc:-1 = 왼쪽 1칸
+- dc: 0 = 같은 칸
+- dc: 1 = 오른쪽 1칸
+
+mark 값
+- mark:'plus'  = 강화 칸
+- mark:'minus' = 약화/감소 칸
+
+position 값
+- null          = 위치 제한 없음
+- 'topRow'      = 제일 윗줄에서만 발동
+- 'bottomRow'   = 제일 아랫줄에서만 발동
+- 'inner'       = 가장자리를 제외한 안쪽에서만 발동
+- 'edge'        = 가장자리에서만 발동
+- 'leftEdge'    = 제일 왼쪽 줄에서만 발동
+- 'rightEdge'   = 제일 오른쪽 줄에서만 발동
+- 'notTopRow'   = 제일 윗줄이 아닐 때만 발동
+- 'notBottomRow'= 제일 아랫줄이 아닐 때만 발동
+
+제약 무시 석판
+- 아티팩트의 강화 제약을 무시하는 석판은 아래처럼 설정합니다.
+
+effect: { ignoreArtifactRestrictions: true }
+
+회전 관련
+- rotate:true 인 석판은 Shift+클릭 시 90도씩 회전합니다.
+- 회전하면 pattern 좌표도 회전하고, 보드에 보이는 석판 이미지도 같이 회전합니다.
+- rotate:false 또는 NO_ROTATE_SLATES에 들어간 석판은 회전되지 않습니다.
+
+주의
+- 각 항목 사이에는 쉼표(,)가 필요합니다.
+- 마지막 항목 뒤 쉼표는 있어도 되고 없어도 됩니다.
+- id는 ITEMS 배열에 들어있는 석판 id와 정확히 같아야 합니다.
+
+
+[경계 석판 예시]
+경계처럼 최상단/최하단만 강화하려면 edge가 아니라 topRow와 bottomRow를 함께 사용합니다.
+
+area: [
+  { type: "topRow", mark: "plus" },
+  { type: "bottomRow", mark: "plus" }
+]
+
+edge는 최상단, 최하단, 왼쪽 끝, 오른쪽 끝을 모두 포함합니다.
