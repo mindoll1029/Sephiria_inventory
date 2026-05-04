@@ -2090,56 +2090,147 @@ function place(i,id) {
       return score - slotIndex / 1000;
     }
     function autoArrangeBoard() {
-      const artifactEntries = [];
-      const slateSlots = new Set();
-      board.forEach((id,index)=>{
-        const item=ITEMS.find(x=>x.id===id);
-        if(!item) return;
-        if(item.type === 'slate') slateSlots.add(index);
-        else if(item.type === 'artifact') artifactEntries.push({ id, from:index });
-      });
-      if(!artifactEntries.length) return toast('자동 배치할 아티팩트가 없습니다');
-      const candidateSlots = board.map((id,index)=>index).filter(index=>!slateSlots.has(index));
-      const potential = getEnhancementPotential();
-      const sortedArtifacts = artifactEntries.sort((a,b)=>{
-        const ar = priorityRank(a.id) || 9999;
-        const br = priorityRank(b.id) || 9999;
-        if(ar !== br) return ar - br;
-        const ax = noEnhanceTargets.has(a.id) ? 1 : 0;
-        const bx = noEnhanceTargets.has(b.id) ? 1 : 0;
-        if(ax !== bx) return ax - bx;
-        return (ITEMS.find(x=>x.id===a.id)?.name || '').localeCompare(ITEMS.find(x=>x.id===b.id)?.name || '', 'ko');
-      });
+      const occupiedCount = board.filter(Boolean).length;
+      if(!occupiedCount) return toast('자동 배치할 아이템이 없습니다');
 
-      candidateSlots.forEach(index=>{
-        if(!slateSlots.has(index)) {
-          board[index] = null;
-          slotMeta[index] = emptySlotMeta();
+      const cloneMetaList = list => list.map(meta => ({
+        rotation: meta && Number.isFinite(Number(meta.rotation)) ? Number(meta.rotation) : 0,
+        components: Array.isArray(meta && meta.components)
+          ? meta.components.map(c => ({ id:c.id, rotation:c.rotation || 0 }))
+          : []
+      }));
+
+      const evaluateLayout = (testBoard, testMeta) => {
+        const savedBoard = board;
+        const savedMeta = slotMeta;
+        const savedMarks = boardMarks;
+        const savedCounts = enhancementCounts;
+
+        board = testBoard;
+        slotMeta = testMeta;
+
+        let result;
+        try {
+          result = calculateSlateEnhancements(false);
+          const marks = boardMarks.slice();
+          const counts = enhancementCounts.slice();
+          let score = 0;
+
+          score += (result.applied || 0) * 80;
+          score -= (result.missing || 0) * 30000;
+          score -= (result.invalid || 0) * 80000;
+          score -= (result.blocked || 0) * 15000;
+
+          testBoard.forEach((id, index) => {
+            if(!id) return;
+            const item = ITEMS.find(x => x.id === id);
+            if(!item) return;
+
+            if(item.type === 'artifact') {
+              const count = counts[index] || 0;
+              const max = artifactMaxLevel(item);
+              const useful = Math.max(0, Math.min(max, count));
+              const rank = priorityRank(id);
+
+              if(noEnhanceTargets.has(id)) {
+                score += count <= 0 ? 2500 : (-30000 * count);
+              } else if(rank) {
+                score += useful * (50000 - rank * 2500);
+                score += useful >= max ? 22000 : -(max - useful) * 1200;
+                if(count < 0) score += count * 10000;
+              } else {
+                score += useful * 650;
+                score += useful >= max ? 900 : 0;
+                if(count < 0) score += count * 2400;
+              }
+
+              score -= index / 1000;
+              return;
+            }
+
+            if(item.type === 'slate') {
+              const combined = combinedSlateRule(index);
+              const rule = combined.rule;
+              const hasRuleTargets = (rule.pattern && rule.pattern.length > 0) || (rule.area && rule.area.length > 0);
+
+              if(!hasRuleTargets || combined.missing) {
+                score -= 12000;
+                return;
+              }
+
+              if(rule.position && !checkPositionConstraint(index, rule.position)) {
+                score -= 90000;
+                return;
+              }
+
+              const targets = [
+                ...indicesForPattern(index, rule.pattern || []),
+                ...collectAreaTargets(index, rule.area || [])
+              ];
+
+              let usefulTargets = 0;
+              targets.forEach(target => {
+                const targetItem = ITEMS.find(x => x.id === testBoard[target.index]);
+                if(!targetItem || targetItem.type !== 'artifact') return;
+                usefulTargets++;
+                if(target.mark === 'plus' || target.mark === 'ignore') score += 140;
+                else if(target.mark === 'minus') score -= 220;
+              });
+
+              score += 600 + usefulTargets * 35;
+              if(marks[index] === 'core') score += 300;
+            }
+          });
+
+          return score;
+        } finally {
+          board = savedBoard;
+          slotMeta = savedMeta;
+          boardMarks = savedMarks;
+          enhancementCounts = savedCounts;
         }
-      });
+      };
 
-      const available = [...candidateSlots];
-      sortedArtifacts.forEach(entry=>{
-        if(!available.length) return;
-        let bestPos = 0;
-        let bestScore = -Infinity;
-        available.forEach((slotIndex, pos)=>{
-          const score = artifactAutoScore(entry.id, slotIndex, potential);
-          if(score > bestScore) {
-            bestScore = score;
-            bestPos = pos;
+      let bestBoard = board.slice();
+      let bestMeta = cloneMetaList(slotMeta);
+      let bestScore = evaluateLayout(bestBoard, bestMeta);
+
+      const maxPasses = Math.min(8, Math.max(3, Math.ceil(board.length / 10)));
+      let improved = true;
+      let pass = 0;
+
+      while(improved && pass < maxPasses) {
+        improved = false;
+        pass++;
+
+        for(let a = 0; a < bestBoard.length; a++) {
+          for(let b = a + 1; b < bestBoard.length; b++) {
+            if(!bestBoard[a] && !bestBoard[b]) continue;
+
+            const trialBoard = bestBoard.slice();
+            const trialMeta = cloneMetaList(bestMeta);
+
+            [trialBoard[a], trialBoard[b]] = [trialBoard[b], trialBoard[a]];
+            [trialMeta[a], trialMeta[b]] = [trialMeta[b], trialMeta[a]];
+
+            const score = evaluateLayout(trialBoard, trialMeta);
+            if(score > bestScore + 0.001) {
+              bestBoard = trialBoard;
+              bestMeta = trialMeta;
+              bestScore = score;
+              improved = true;
+            }
           }
-        });
-        const chosen = available.splice(bestPos, 1)[0];
-        board[chosen] = entry.id;
-        slotMeta[chosen] = emptySlotMeta();
-      });
+        }
+      }
 
+      board = bestBoard;
+      slotMeta = bestMeta;
       mergeSourceIndex = null;
       selectedMergeSlate = null;
       update();
       renderInventory();
-      toast('우선 순위와 강화 X를 반영해 자동 배치했습니다');
+      toast('석판과 아티팩트를 함께 자동 배치했습니다');
     }
     function update() { calculateSlateEnhancements(false); renderBoard(); renderInventory(); updateSlotCount(); }
     function syncRarityFilterState() {
