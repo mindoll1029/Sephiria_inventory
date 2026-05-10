@@ -233,7 +233,6 @@
     @media(max-width:700px) { .inventory { grid-template-columns:repeat(6, minmax(0, 1fr)); } }
     @media(max-width:560px) { .app { width:calc(100% - 16px); } .notice,.board-toolbar { flex-direction:column; align-items:stretch; } .controls { grid-template-columns:1fr; } .controls input, .controls select { grid-column:1 / -1; } .type-buttons { display:grid; } .grid { --board-cell:64px; grid-template-columns:repeat(4,var(--board-cell)); gap:7px; } .tab,.btn { padding:7px 9px; font-size:13px; } #helpBtn { width:27px; height:27px; padding:0; } }
 
-    /* v24 fix: 우측 목록은 상태 배지를 숨기고, 좌측 인벤토리 슬롯에만 상태를 표시합니다. */
     #inventory .priority-number-badge,
     #inventory .no-enhance-dot,
     #inventory .level-badge { display:none !important; }
@@ -1362,17 +1361,18 @@
   }
 };
 
-    // 석판 합성 규칙:
-    // - 같은 칸에 여러 석판을 합성하면 components 배열에 각 석판 id와 합성 당시 rotation이 저장됩니다.
-    // - 작동 시 모든 components의 +, -, 위치 제한, 아티팩트 제약 무시 효과를 합산합니다.
-    // - 회전 가능한 석판은 Shift+클릭으로 90도씩 회전할 수 있고, 그 회전값이 합성 결과에 반영됩니다.
-
-    // 아티팩트 제약 데이터가 들어가는 자리입니다.
-    // 실제 제약을 알게 되면 artifact id별로 추가하면 됩니다.
-    // 예: 특정 아티팩트가 제일 윗줄에서만 강화 가능하면 position:'topRow'
-    // 예: 특정 아티팩트가 석판 강화를 받을 수 없으면 noSlateEnhance:true
     const ARTIFACT_RULES = {
-      // artifact_example: { position:'inner', noSlateEnhance:false }
+      artifact_sword_training_manual: { position:'topRow' },
+      artifact_keel_fragment: { position:'edge' },
+      artifact_scabbard_of_exorcism: { position:'edge' },
+      artifact_warm_stone: { position:'inner' },
+      artifact_cold_lock: { emptySides: true },
+      artifact_magic_carrot: { position:'topRow' },
+      artifact_silver_plate: { position:'bottomRow' },
+      artifact_blue_ink_bottle: { position:'edge' },
+      artifact_rylies_pocket_watch: { position:'bottomRow' },
+      artifact_thorn_bush: { position:'inner' },
+      artifact_multipurpose_belt: { position:'bottomRow' }
     };
 
     const BOARD_COLUMNS = 6;
@@ -1953,6 +1953,18 @@ function place(i,id) {
 
       return targets;
     }
+
+        function hasEmptySideSlots(index) {
+      const { col, cols } = slotPosition(index);
+    
+      if (col === 0 || col === cols - 1) return false;
+    
+      const leftIndex = index - 1;
+      const rightIndex = index + 1;
+    
+      return board[leftIndex] === null && board[rightIndex] === null;
+    }
+    
     function artifactCanReceiveEnhancement(itemId, targetIndex, slateRule) {
       const item = ITEMS.find(x => x.id === itemId);
       if(!item || item.type !== 'artifact') return { ok:true, reason:'' };
@@ -1962,6 +1974,7 @@ function place(i,id) {
       if(slateRule && slateRule.effect && slateRule.effect.ignoreArtifactRestrictions) return { ok:true, reason:'ignored' };
       if(artifactRule.noSlateEnhance) return { ok:false, reason:'artifact-block' };
       if(artifactRule.position && !checkPositionConstraint(targetIndex, artifactRule.position)) return { ok:false, reason:'artifact-position' };
+      if(artifactRule.emptySides && !hasEmptySideSlots(targetIndex)) return { ok:false, reason:'empty-sides' };
       return { ok:true, reason:'' };
     }
 
@@ -1982,8 +1995,6 @@ function place(i,id) {
       });
     }
     function markPrioritySuggestions() {
-      // 인벤토리 칸의 "추천" 표시를 제거하기 위해 시각 표시를 만들지 않습니다.
-      // 자동 배치는 getEnhancementPotential()을 따로 사용하므로 추천 표시가 없어도 작동합니다.
       return 0;
     }
     function calculateSlateEnhancements(showToast=false) {
