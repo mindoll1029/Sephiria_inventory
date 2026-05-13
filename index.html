@@ -207,7 +207,7 @@
       z-index:6; pointer-events:none;
     }
     .mode-buttons {
-      grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr));
+      grid-column:1 / -1; display:grid; grid-template-columns:repeat(6, minmax(0, 1fr));
       gap:8px; align-items:center;
     }
     .mode-btn {
@@ -308,7 +308,9 @@
           <div class="mode-buttons" aria-label="자동 배치 설정">
             <button class="mode-btn" id="priorityModeBtn" type="button">우선 순위</button>
             <button class="mode-btn" id="banModeBtn" type="button">강화 X</button>
+            <button class="mode-btn" id="enchantModeBtn" type="button">인챈트</button>
             <button class="mode-btn" id="mergeModeBtn" type="button">석판 합성</button>
+            <button class="mode-btn" id="needleModeBtn" type="button">북향의 금빛 침</button>
             <button class="mode-btn" id="autoApplyBtn" type="button">적용</button>
           </div>
         </div>
@@ -629,6 +631,7 @@
     let board = Array(initialBoardSize).fill(null);
     let boardMarks = Array(initialBoardSize).fill(null);
     let enhancementCounts = Array(initialBoardSize).fill(0);
+    let manualEnhancementCounts = Array(initialBoardSize).fill(0);
     let selected = null;
     let currentType = 'artifact';
     let currentRarity = 'all';
@@ -1373,7 +1376,17 @@
     // 예: 특정 아티팩트가 제일 윗줄에서만 강화 가능하면 position:'topRow'
     // 예: 특정 아티팩트가 석판 강화를 받을 수 없으면 noSlateEnhance:true
     const ARTIFACT_RULES = {
-      // artifact_example: { position:'inner', noSlateEnhance:false }
+      artifact_sword_training_manual: { position:'topRow' },
+      artifact_keel_fragment: { position:'edge' },
+      artifact_scabbard_of_exorcism: { position:'edge' },
+      artifact_warm_stone: { position:'inner' },
+      artifact_cold_lock: { position:'inner', emptySides:true },
+      artifact_magic_carrot: { position:'topRow' },
+      artifact_silver_plate: { position:'bottomRow' },
+      artifact_blue_ink_bottle: { position:'edge' },
+      "artifact_rylie's_pocket_watch": { position:'bottomRow' },
+      artifact_thorn_bush: { position:'inner' },
+      artifact_multipurpose_belt: { position:'bottomRow' }
     };
 
     const BOARD_COLUMNS = 6;
@@ -1414,15 +1427,21 @@
       selectMode = selectMode === mode ? 'normal' : mode;
       const priorityBtn = $('#priorityModeBtn');
       const banBtn = $('#banModeBtn');
+      const enchantBtn = $('#enchantModeBtn');
       const mergeBtn = $('#mergeModeBtn');
+      const needleBtn = $('#needleModeBtn');
       if(priorityBtn) priorityBtn.classList.toggle('active', selectMode === 'priority');
       if(banBtn) banBtn.classList.toggle('active', selectMode === 'ban');
+      if(enchantBtn) enchantBtn.classList.toggle('active', selectMode === 'enchant');
       if(mergeBtn) mergeBtn.classList.toggle('active', selectMode === 'merge');
+      if(needleBtn) needleBtn.classList.toggle('active', selectMode === 'needle');
       if(selectMode !== 'merge') mergeSourceIndex = null;
       selectedMergeSlate = null;
-      if(selectMode === 'priority') toast('우선 순위 모드: 아티팩트를 누른 순서대로 번호를 지정합니다');
-      else if(selectMode === 'ban') toast('강화 X 모드: 강화받지 않을 아티팩트를 선택합니다');
-      else if(selectMode === 'merge') toast('석판 합성 모드: 합칠 원본 석판과 대상 석판을 순서대로 선택하세요');
+      if(selectMode === 'priority') toast('우선 순위 모드: 왼쪽 인벤토리 칸에 배치된 아티팩트를 선택하세요');
+      else if(selectMode === 'ban') toast('강화 X 모드: 왼쪽 인벤토리 칸에 배치된 아티팩트를 선택하세요');
+      else if(selectMode === 'enchant') toast('인챈트 모드: 왼쪽 인벤토리 칸의 아티팩트를 선택하면 강화도 +1');
+      else if(selectMode === 'merge') toast('석판 합성 모드: 왼쪽 인벤토리 칸의 원본 석판과 대상 석판을 순서대로 선택하세요');
+      else if(selectMode === 'needle') toast('북향의 금빛 침 모드: 기준 아이템을 선택하면 그 아래 칸으로 이동합니다');
       else toast('선택 모드 해제');
       update();
     }
@@ -1459,8 +1478,7 @@
       update();
     }
     function handleArtifactPick(id) {
-      if(selectMode === 'priority') return togglePriority(id);
-      if(selectMode === 'ban') return toggleNoEnhance(id);
+      if(selectMode !== 'normal') return toast('이 모드는 오른쪽 목록이 아니라 왼쪽 인벤토리 칸에서 선택하세요');
       return autoPlace(id);
     }
 
@@ -1479,6 +1497,44 @@
       renderInventory();
       update();
     }
+    function enchantArtifactSlot(index) {
+      const item = board[index] ? ITEMS.find(x=>x.id===board[index]) : null;
+      if(!item || item.type !== 'artifact') return toast('인챈트는 왼쪽 인벤토리 칸의 아티팩트에만 적용됩니다');
+      const max = artifactMaxLevel(item);
+      const currentManual = manualEnhancementCounts[index] || 0;
+      const currentTotal = enhancementCounts[index] || currentManual;
+      if(currentTotal >= max) return toast(item.name+'은 이미 MAX입니다');
+      manualEnhancementCounts[index] = Math.min(max, currentManual + 1);
+      toast(item.name+' 인챈트 +1');
+      update();
+    }
+
+    function placeNeedleBelow(targetIndex) {
+      const targetItem = board[targetIndex] ? ITEMS.find(x=>x.id===board[targetIndex]) : null;
+      if(!targetItem) return toast('북향의 금빛 침을 놓을 기준 아이템을 선택하세요');
+      const needleId = 'artifact_unalloyed_gold_needle';
+      const needleItem = ITEMS.find(x=>x.id===needleId);
+      if(!needleItem) return toast('북향의 금빛 침 데이터를 찾을 수 없습니다');
+      if(board[targetIndex] === needleId) return toast('북향의 금빛 침 자신은 기준 아이템으로 지정할 수 없습니다');
+      const belowIndex = targetIndex + BOARD_COLUMNS;
+      if(belowIndex >= board.length) return toast('선택한 아이템 아래에 인벤토리 칸이 없습니다');
+      const existingNeedleIndex = board.findIndex(id => id === needleId);
+      if(existingNeedleIndex >= 0) {
+        [board[existingNeedleIndex], board[belowIndex]] = [board[belowIndex], board[existingNeedleIndex]];
+        [slotMeta[existingNeedleIndex], slotMeta[belowIndex]] = [slotMeta[belowIndex] || emptySlotMeta(), slotMeta[existingNeedleIndex] || emptySlotMeta()];
+        [manualEnhancementCounts[existingNeedleIndex], manualEnhancementCounts[belowIndex]] = [manualEnhancementCounts[belowIndex] || 0, manualEnhancementCounts[existingNeedleIndex] || 0];
+      } else {
+        if(board[belowIndex]) return toast('선택한 아이템 아래 칸이 비어있지 않습니다');
+        board[belowIndex] = needleId;
+        slotMeta[belowIndex] = emptySlotMeta();
+        manualEnhancementCounts[belowIndex] = 0;
+      }
+      boardMarks[belowIndex]=null;
+      enhancementCounts[belowIndex]=manualEnhancementCounts[belowIndex] || 0;
+      toast('북향의 금빛 침을 '+targetItem.name+' 아래에 배치했습니다');
+      update();
+    }
+
     function autoPlace(id) {
       const index = board.findIndex(slot => slot === null);
       if(index === -1) return toast('빈 인벤토리 칸이 없습니다');
@@ -1490,7 +1546,7 @@
         const rarity = it.type === 'slate' ? ` data-rarity="${it.rarity || 'common'}"` : '';
         const title = it.type === 'artifact'
           ? `${it.name}
-클릭: 첫 빈칸 배치 / 우선 순위·강화 X 버튼으로 지정`
+클릭: 첫 빈칸 배치`
           : `${it.name}
 클릭: 첫 빈칸 배치 / Shift+클릭: 합성 대기
 ${rarityNames[it.rarity] || ''}`;
@@ -1504,7 +1560,6 @@ ${rarityNames[it.rarity] || ''}`;
           const item=ITEMS.find(x=>x.id===card.dataset.id);
           if(!item) return;
           if(item.type === 'artifact') {
-            if(event.shiftKey) return togglePriority(card.dataset.id);
             return handleArtifactPick(card.dataset.id);
           }
           if(item.type === 'slate' && event.shiftKey) {
@@ -1522,6 +1577,7 @@ ${rarityNames[it.rarity] || ''}`;
             mergeSourceIndex = null;
             return toast(item.name+' 합성 대기: 왼쪽 석판 칸을 클릭하세요');
           }
+          if(item && item.type === 'artifact') return handleArtifactPick(card.dataset.id);
           if(selectMode === 'ban') return toggleNoEnhance(card.dataset.id);
           togglePriority(card.dataset.id);
         });
@@ -1570,6 +1626,8 @@ ${rarityNames[it.rarity] || ''}`;
           const i=+slot.dataset.i;
           const item = board[i] ? ITEMS.find(x=>x.id===board[i]) : null;
           if(selectMode === 'merge') return handleSlateMergeModeClick(i);
+          if(selectMode === 'enchant') return enchantArtifactSlot(i);
+          if(selectMode === 'needle') return placeNeedleBelow(i);
           if(selectedMergeSlate) {
             mergeSelectedSlateIntoSlot(i);
             return;
@@ -1587,6 +1645,7 @@ ${rarityNames[it.rarity] || ''}`;
             const old=ITEMS.find(x=>x.id===board[i]);
             board[i]=null;
             boardMarks[i]=null;
+            manualEnhancementCounts[i]=0;
             enhancementCounts[i]=0;
             slotMeta[i]=emptySlotMeta();
             if(mergeSourceIndex === i) mergeSourceIndex = null;
@@ -1612,6 +1671,7 @@ ${rarityNames[it.rarity] || ''}`;
       const targetItem = ITEMS.find(x=>x.id===board[targetIndex]);
       [board[fromIndex], board[targetIndex]] = [board[targetIndex], board[fromIndex]];
       [slotMeta[fromIndex], slotMeta[targetIndex]] = [slotMeta[targetIndex] || emptySlotMeta(), slotMeta[fromIndex] || emptySlotMeta()];
+      [manualEnhancementCounts[fromIndex], manualEnhancementCounts[targetIndex]] = [manualEnhancementCounts[targetIndex] || 0, manualEnhancementCounts[fromIndex] || 0];
       clearEnhancementMarks();
       if(mergeSourceIndex === fromIndex) mergeSourceIndex = targetIndex;
       else if(mergeSourceIndex === targetIndex) mergeSourceIndex = fromIndex;
@@ -1628,6 +1688,7 @@ function place(i,id) {
       }
       board[i]=id;
       boardMarks[i]=null;
+      manualEnhancementCounts[i]=0;
       enhancementCounts[i]=0;
       slotMeta[i] = item.type === 'slate' ? { rotation:0, components:[{ id:item.id, rotation:0 }] } : emptySlotMeta();
       if(mergeSourceIndex === i) mergeSourceIndex = null;
@@ -1643,6 +1704,7 @@ function place(i,id) {
         board.push(null);
         boardMarks.push(null);
         enhancementCounts.push(0);
+        manualEnhancementCounts.push(0);
         slotMeta.push(emptySlotMeta());
       } else {
         if(board.length <= 1) return toast('최소 1칸은 유지됩니다');
@@ -1650,6 +1712,7 @@ function place(i,id) {
         board.pop();
         boardMarks.pop();
         enhancementCounts.pop();
+        manualEnhancementCounts.pop();
         slotMeta.pop();
         if(mergeSourceIndex !== null && mergeSourceIndex >= board.length) mergeSourceIndex = null;
         if(removed) toast('마지막 칸의 아이템도 함께 제거되었습니다');
@@ -1738,6 +1801,7 @@ function place(i,id) {
       const sourceName = ITEMS.find(x=>x.id===board[sourceIndex])?.name || '석판';
       board[sourceIndex]=null;
       boardMarks[sourceIndex]=null;
+      manualEnhancementCounts[sourceIndex]=0;
       enhancementCounts[sourceIndex]=0;
       slotMeta[sourceIndex]=emptySlotMeta();
       mergeSourceIndex = null;
@@ -1821,7 +1885,15 @@ function place(i,id) {
     }
     function clearEnhancementMarks() {
       boardMarks = Array(board.length).fill(null);
-      enhancementCounts = Array(board.length).fill(0);
+      enhancementCounts = manualEnhancementCounts.slice(0, board.length);
+      while(enhancementCounts.length < board.length) enhancementCounts.push(0);
+    }
+    function applyManualEnchantMarks() {
+      board.forEach((id,index)=>{
+        const item=ITEMS.find(x=>x.id===id);
+        if(!item || item.type !== 'artifact') return;
+        if((manualEnhancementCounts[index] || 0) > 0 && !boardMarks[index]) boardMarks[index]='plus';
+      });
     }
     function rowCount() {
       return Math.ceil(board.length / BOARD_COLUMNS);
@@ -1980,6 +2052,14 @@ function place(i,id) {
 
       return targets;
     }
+    function hasEmptySideSlots(index) {
+      const { col, cols } = slotPosition(index);
+      if(col === 0 || col === cols - 1) return false;
+      const leftIndex = index - 1;
+      const rightIndex = index + 1;
+      return board[leftIndex] === null && board[rightIndex] === null;
+    }
+
     function artifactCanReceiveEnhancement(itemId, targetIndex, slateRule) {
       const item = ITEMS.find(x => x.id === itemId);
       if(!item || item.type !== 'artifact') return { ok:true, reason:'' };
@@ -1989,6 +2069,7 @@ function place(i,id) {
       if(slateRule && slateRule.effect && slateRule.effect.ignoreArtifactRestrictions) return { ok:true, reason:'ignored' };
       if(artifactRule.noSlateEnhance) return { ok:false, reason:'artifact-block' };
       if(artifactRule.position && !checkPositionConstraint(targetIndex, artifactRule.position)) return { ok:false, reason:'artifact-position' };
+      if(artifactRule.emptySides && !hasEmptySideSlots(targetIndex)) return { ok:false, reason:'empty-sides' };
       return { ok:true, reason:'' };
     }
 
@@ -2050,6 +2131,7 @@ function place(i,id) {
           applied++;
         });
       });
+      applyManualEnchantMarks();
       applyPriorityMaxMarks();
       const suggestions = markPrioritySuggestions();
       if(showToast) {
@@ -2136,16 +2218,19 @@ function place(i,id) {
           ? meta.components.map(c => ({ id:c.id, rotation:c.rotation || 0 }))
           : []
       }));
+      const cloneManualList = list => list.slice(0, board.length).map(value => Number(value) || 0);
 
-      const evaluateLayout = (testBoard, testMeta) => {
+      const evaluateLayout = (testBoard, testMeta, testManual) => {
         if(violatesLateralOnly(testBoard)) return -Infinity;
         const savedBoard = board;
         const savedMeta = slotMeta;
         const savedMarks = boardMarks;
         const savedCounts = enhancementCounts;
+        const savedManual = manualEnhancementCounts;
 
         board = testBoard;
         slotMeta = testMeta;
+        manualEnhancementCounts = testManual;
 
         let result;
         try {
@@ -2226,12 +2311,14 @@ function place(i,id) {
           slotMeta = savedMeta;
           boardMarks = savedMarks;
           enhancementCounts = savedCounts;
+          manualEnhancementCounts = savedManual;
         }
       };
 
       let bestBoard = board.slice();
       let bestMeta = cloneMetaList(slotMeta);
-      let bestScore = evaluateLayout(bestBoard, bestMeta);
+      let bestManual = cloneManualList(manualEnhancementCounts);
+      let bestScore = evaluateLayout(bestBoard, bestMeta, bestManual);
 
       const maxPasses = Math.min(8, Math.max(3, Math.ceil(board.length / 10)));
       let improved = true;
@@ -2247,15 +2334,18 @@ function place(i,id) {
 
             const trialBoard = bestBoard.slice();
             const trialMeta = cloneMetaList(bestMeta);
+            const trialManual = cloneManualList(bestManual);
 
             [trialBoard[a], trialBoard[b]] = [trialBoard[b], trialBoard[a]];
             [trialMeta[a], trialMeta[b]] = [trialMeta[b], trialMeta[a]];
+            [trialManual[a], trialManual[b]] = [trialManual[b], trialManual[a]];
 
             if(violatesLateralOnly(trialBoard)) continue;
-            const score = evaluateLayout(trialBoard, trialMeta);
+            const score = evaluateLayout(trialBoard, trialMeta, trialManual);
             if(score > bestScore + 0.001) {
               bestBoard = trialBoard;
               bestMeta = trialMeta;
+              bestManual = trialManual;
               bestScore = score;
               improved = true;
             }
@@ -2265,6 +2355,7 @@ function place(i,id) {
 
       board = bestBoard;
       slotMeta = bestMeta;
+      manualEnhancementCounts = bestManual;
       mergeSourceIndex = null;
       selectedMergeSlate = null;
       update();
@@ -2401,6 +2492,7 @@ function place(i,id) {
 
       board = nextBoard;
       boardMarks = Array(board.length).fill(null);
+      manualEnhancementCounts = Array(board.length).fill(0);
       enhancementCounts = Array(board.length).fill(0);
       slotMeta = nextMeta;
       mergeSourceIndex = null;
@@ -2430,12 +2522,14 @@ function place(i,id) {
     }));
     $('#themeBtn').addEventListener('click',()=>document.body.classList.toggle('light'));
     $('#helpBtn').addEventListener('click',()=>toast('PC는 드래그, 모바일은 아이템 클릭 후 슬롯 클릭'));
-    $('#clearBtn').addEventListener('click',()=>{ board.fill(null); boardMarks.fill(null); enhancementCounts.fill(0); slotMeta=Array.from({ length: board.length }, () => emptySlotMeta()); mergeSourceIndex=null; selectedMergeSlate=null; selected=null; priorityOrder.length=0; syncPriorityTargets(); noEnhanceTargets.clear(); selectMode='normal'; const pb=$('#priorityModeBtn'); const bb=$('#banModeBtn'); const mb=$('#mergeModeBtn'); if(pb) pb.classList.remove('active'); if(bb) bb.classList.remove('active'); if(mb) mb.classList.remove('active'); renderInventory(); update(); toast('초기화 완료'); });
+    $('#clearBtn').addEventListener('click',()=>{ board.fill(null); boardMarks.fill(null); manualEnhancementCounts=Array(board.length).fill(0); enhancementCounts.fill(0); slotMeta=Array.from({ length: board.length }, () => emptySlotMeta()); mergeSourceIndex=null; selectedMergeSlate=null; selected=null; priorityOrder.length=0; syncPriorityTargets(); noEnhanceTargets.clear(); selectMode='normal'; const pb=$('#priorityModeBtn'); const bb=$('#banModeBtn'); const eb=$('#enchantModeBtn'); const mb=$('#mergeModeBtn'); const nb=$('#needleModeBtn'); if(pb) pb.classList.remove('active'); if(bb) bb.classList.remove('active'); if(eb) eb.classList.remove('active'); if(mb) mb.classList.remove('active'); if(nb) nb.classList.remove('active'); renderInventory(); update(); toast('초기화 완료'); });
     $('#slotMinus').addEventListener('click',()=>changeSlotCount(-1));
     $('#slotPlus').addEventListener('click',()=>changeSlotCount(1));
     $('#priorityModeBtn').addEventListener('click',()=>setSelectMode('priority'));
     $('#banModeBtn').addEventListener('click',()=>setSelectMode('ban'));
+    $('#enchantModeBtn').addEventListener('click',()=>setSelectMode('enchant'));
     $('#mergeModeBtn').addEventListener('click',()=>setSelectMode('merge'));
+    $('#needleModeBtn').addEventListener('click',()=>setSelectMode('needle'));
     $('#autoApplyBtn').addEventListener('click',autoArrangeBoard);
     $('#operateBtn').addEventListener('click',autoArrangeBoard);
     $('#shotBtn').addEventListener('click',()=>$('#shotInput').click());
